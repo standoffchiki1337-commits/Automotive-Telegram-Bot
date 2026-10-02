@@ -1,44 +1,53 @@
-# [Project name]
+# Automotive Telegram Bot
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A multilingual Telegram bot for browsing vehicle listings, managing favorites and viewing requests, and administering an automotive inventory.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- Start the **Automotive Telegram Bot** workflow — run the Telegram long-polling service
+- `uv run python -m automotive_bot.main` — run the bot locally
+- `uv run python -m automotive_bot.bootstrap_admin <TELEGRAM_ID>` — add the first administrator
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required env: `BOT_TOKEN` (Replit Secret)
+- Optional env: `DATABASE_URL`, `ADMIN_IDS`, `CURRENCY`
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Python 3.11, aiogram 3, SQLAlchemy async
+- SQLite by default; PostgreSQL supported through `DATABASE_URL`
+- Existing workspace tooling: pnpm, TypeScript, Express API, and Drizzle
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `automotive_bot/handlers/customer.py` — catalog, search, favorites, appointments, and contact
+- `automotive_bot/handlers/admin.py` — listings, photos, viewing requests, and administrator management
+- `automotive_bot/models.py` — persistent data model
+- `automotive_bot/i18n.py` — Russian, Polish, and Ukrainian bot text
+- `README.md` — configuration and run instructions
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Telegram long polling avoids requiring a public webhook endpoint.
+- Vehicle photos are referenced by Telegram file IDs rather than duplicated in the database.
+- SQLite is the no-configuration development default; PostgreSQL works through `DATABASE_URL`.
+- First-admin access is explicitly bootstrapped by the project owner or an existing administrator, never assigned to an arbitrary first user.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Customers can browse/filter vehicles, save favorites, request viewings, contact the business, and review their own saved items and requests.
+- Administrators can manage vehicle inventory, photos, request statuses, and administrator access.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Keep `BOT_TOKEN` in an environment secret, never in source code.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Administrators must open the bot in Telegram before it can send private notifications to them.
+- `ADMIN_IDS` are re-seeded into the database on startup; remove an ID from the environment after bootstrapping if in-bot removal should persist.
 
 ## Pointers
 

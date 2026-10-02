@@ -1,0 +1,11 @@
+[project]
+name = "automotive-telegram-bot"
+version = "0.1.0"
+description = "A multilingual automotive inventory and viewing-request Telegram bot."
+requires-python = ">=3.11"
+dependencies = [
+    "aiogram>=3.31.0",
+    "aiosqlite>=0.22.1",
+    "asyncpg>=0.31.0",
+    "sqlalchemy[asyncio]>=2.1.2",
+]

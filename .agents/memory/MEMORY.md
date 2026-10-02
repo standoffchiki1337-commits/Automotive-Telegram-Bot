@@ -1,0 +1,1 @@
+- [Async PostgreSQL compatibility](async-postgres-compatibility.md) — Normalize Replit PostgreSQL SSL URL options for asyncpg and keep SQLAlchemy’s asyncio extra installed.

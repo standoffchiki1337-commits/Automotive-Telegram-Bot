@@ -1,0 +1,612 @@
+from __future__ import annotations
+
+from decimal import Decimal, InvalidOperation
+from html import escape
+
+from aiogram import Bot, F, Router
+from aiogram.filters import Command, StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.types import (
+    CallbackQuery,
+    InputMediaPhoto,
+    Message,
+)
+from sqlalchemy import func, or_, select
+from sqlalchemy.orm import selectinload
+
+from automotive_bot.config import Settings
+from automotive_bot.i18n import (
+    FUEL_KEYS,
+    LANGUAGES,
+    STATUS_KEYS,
+    TEXTS,
+    TRANSMISSION_KEYS,
+    t,
+)
+from automotive_bot.keyboards import (
+    back_keyboard,
+    car_actions,
+    car_results,
+    fuel_keyboard,
+    home_keyboard,
+    language_keyboard,
+    transmission_keyboard,
+)
+from automotive_bot.models import Car, Favorite, User, ViewingRequest
+from automotive_bot.services import (
+    get_user_language,
+    is_administrator,
+    money_text,
+    notify_administrators,
+    save_telegram_user,
+)
+from automotive_bot.states import ContactFlow, CustomerSearch, ViewingRequestFlow
+
+router = Router(name="customer")
+
+
+def _all_button_texts(key: str) -> set[str]:
+    return {language[key] for language in TEXTS.values()}
+
+
+async def _localized_user(session_factory, telegram_id: int) -> tuple[str, bool]:
+    return (
+        await get_user_language(session_factory, telegram_id),
+        await is_administrator(session_factory, telegram_id),
+    )
+
+
+async def _search_conditions(filters: dict) -> list:
+    conditions = [Car.status == "available"]
+    term = str(filters.get("term", "")).strip()
+    if term:
+        pattern = f"%{term}%"
+        conditions.append(
+            or_(Car.make_model.ilike(pattern), Car.description.ilike(pattern))
+        )
+    fuel = filters.get("fuel")
+    if fuel and fuel != "any":
+        conditions.append(Car.fuel_type == fuel)
+    transmission = filters.get("transmission")
+    if transmission and transmission != "any":
+        conditions.append(Car.transmission == transmission)
+    year_min = int(filters.get("year_min") or 0)
+    if year_min:
+        conditions.append(Car.year >= year_min)
+    price_max = filters.get("price_max")
+    if price_max:
+        conditions.append(Car.price <= Decimal(str(price_max)))
+    return conditions
+
+
+async def _show_car_page(
+    bot: Bot,
+    chat_id: int,
+    user_id: int,
+    session_factory,
+    settings: Settings,
+    state: FSMContext,
+    page: int,
+    language: str,
+) -> None:
+    page_size = 8
+    data = await state.get_data()
+    list_kind = data.get("list_kind", "all")
+
+    async with session_factory() as session:
+        if list_kind == "favorites":
+            base = (
+                select(Car)
+                .join(Favorite, Favorite.car_id == Car.id)
+                .where(Favorite.user_id == user_id, Car.status != "sold")
+            )
+            count_stmt = (
+                select(func.count())
+                .select_from(Car)
+                .join(Favorite, Favorite.car_id == Car.id)
+                .where(Favorite.user_id == user_id, Car.status != "sold")
+            )
+        else:
+            conditions = (
+                await _search_conditions(data)
+                if list_kind == "search"
+                else [Car.status == "available"]
+            )
+            base = select(Car).where(*conditions)
+            count_stmt = select(func.count()).select_from(Car).where(*conditions)
+
+        total = int(await session.scalar(count_stmt) or 0)
+        cars = list(
+            (
+                await session.scalars(
+                    base.options(selectinload(Car.photos))
+                    .order_by(Car.created_at.desc(), Car.id.desc())
+                    .offset(page * page_size)
+                    .limit(page_size + 1)
+                )
+            ).all()
+        )
+
+    has_more = len(cars) > page_size
+    cars = cars[:page_size]
+    if not cars:
+        if list_kind == "favorites":
+            message = t(language, "favorites_empty")
+        elif list_kind == "search":
+            message = t(language, "search_none")
+        else:
+            message = t(language, "cars_empty")
+        await bot.send_message(
+            chat_id, message, reply_markup=back_keyboard(language)
+        )
+        return
+
+    rows = [
+        (
+            car.id,
+            t(
+                language,
+                "car_list_line",
+                name=car.make_model,
+                price=money_text(car.price, settings.currency),
+                year=car.year,
+            ).replace("  ·", " ·"),
+        )
+        for car in cars
+    ]
+    heading = (
+        "search_results"
+        if list_kind == "search"
+        else "btn_favorites"
+        if list_kind == "favorites"
+        else "btn_cars"
+    )
+    await bot.send_message(
+        chat_id,
+        f"{t(language, heading)} ({total})",
+        reply_markup=car_results(
+            language,
+            rows,
+            page,
+            has_more,
+            back_callback="menu:home",
+        ),
+    )
+
+
+async def _car_details(session_factory, car_id: int, language: str, currency: str) -> str:
+    async with session_factory() as session:
+        car = await session.scalar(
+            select(Car).options(selectinload(Car.photos)).where(Car.id == car_id)
+        )
+        if car is None:
+            return t(language, "car_missing")
+        fuel = t(language, FUEL_KEYS.get(car.fuel_type, "fuel_any"))
+        transmission = t(
+            language, TRANSMISSION_KEYS.get(car.transmission, "trans_other")
+        )
+        status = t(language, STATUS_KEYS.get(car.status, "status_available"))
+        return (
+            f"<b>{escape(car.make_model)}</b>\n"
+            f"{t(language, 'label_year')}: {car.year}\n"
+            f"{t(language, 'label_price')}: {money_text(car.price, currency)}\n"
+            f"{t(language, 'label_mileage')}: {car.mileage:,} {t(language, 'unit_km')}\n"
+            f"{t(language, 'label_fuel')}: {fuel}\n"
+            f"{t(language, 'label_transmission')}: {transmission}\n"
+            f"{t(language, 'label_status')}: {status}\n\n"
+            f"<b>{t(language, 'label_description')}:</b>\n{escape(car.description or '—')}"
+        )
+
+
+async def _show_car(
+    bot: Bot,
+    chat_id: int,
+    user_id: int,
+    car_id: int,
+    session_factory,
+    settings: Settings,
+    language: str,
+) -> None:
+    async with session_factory() as session:
+        car = await session.scalar(
+            select(Car)
+            .options(selectinload(Car.photos))
+            .where(Car.id == car_id)
+        )
+        if car is None:
+            await bot.send_message(chat_id, t(language, "car_missing"))
+            return
+        is_favorite = (
+            await session.get(Favorite, (user_id, car_id)) is not None
+        )
+        photos = [photo.file_id for photo in car.photos]
+        status = car.status
+    if photos:
+        for start in range(0, len(photos), 10):
+            batch = photos[start : start + 10]
+            await bot.send_media_group(
+                chat_id,
+                media=[InputMediaPhoto(media=file_id) for file_id in batch],
+            )
+    text = await _car_details(session_factory, car_id, language, settings.currency)
+    markup = car_actions(language, car_id, is_favorite)
+    if status != "available":
+        markup.inline_keyboard = [
+            row
+            for row in markup.inline_keyboard
+            if not any(button.callback_data == f"appointment:{car_id}" for button in row)
+        ]
+    await bot.send_message(chat_id, text, reply_markup=markup, parse_mode="HTML")
+
+
+@router.message(Command("start"))
+async def start_command(message: Message, session_factory, state: FSMContext) -> None:
+    if not message.from_user:
+        return
+    await state.clear()
+    async with session_factory() as session:
+        existing = await session.get(User, message.from_user.id)
+    await save_telegram_user(session_factory, message.from_user)
+    if existing is None:
+        await message.answer(
+            t("ru", "language_prompt"), reply_markup=language_keyboard()
+        )
+        return
+    language, admin = await _localized_user(session_factory, message.from_user.id)
+    await message.answer(
+        t(language, "welcome"), reply_markup=home_keyboard(language, admin)
+    )
+
+
+@router.message(Command("help"))
+async def help_command(message: Message, session_factory) -> None:
+    if not message.from_user:
+        return
+    language, admin = await _localized_user(session_factory, message.from_user.id)
+    await message.answer(t(language, "welcome"), reply_markup=home_keyboard(language, admin))
+
+
+@router.message(Command("cancel"))
+async def cancel_command(message: Message, state: FSMContext, session_factory) -> None:
+    await state.clear()
+    if message.from_user:
+        language, admin = await _localized_user(session_factory, message.from_user.id)
+        await message.answer(t(language, "btn_cancel"), reply_markup=home_keyboard(language, admin))
+
+
+@router.callback_query(F.data.startswith("language:"))
+async def choose_language(callback: CallbackQuery, session_factory) -> None:
+    if not callback.from_user:
+        return
+    language = str(callback.data).split(":", 1)[1]
+    if language not in LANGUAGES:
+        await callback.answer()
+        return
+    await save_telegram_user(session_factory, callback.from_user)
+    async with session_factory() as session:
+        user = await session.get(User, callback.from_user.id)
+        if user:
+            user.language = language
+            await session.commit()
+    admin = await is_administrator(session_factory, callback.from_user.id)
+    await callback.answer(t(language, "language_set"))
+    if callback.message:
+        await callback.message.answer(
+            t(language, "welcome"), reply_markup=home_keyboard(language, admin)
+        )
+
+
+@router.callback_query(F.data == "menu:home")
+async def home_menu(callback: CallbackQuery, session_factory, state: FSMContext) -> None:
+    await state.clear()
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    language, admin = await _localized_user(session_factory, callback.from_user.id)
+    await callback.answer()
+    await callback.message.answer(
+        t(language, "welcome"), reply_markup=home_keyboard(language, admin)
+    )
+
+
+@router.message(StateFilter(None), F.text.in_(_all_button_texts("btn_language")))
+async def language_menu(message: Message, session_factory) -> None:
+    language = await get_user_language(session_factory, message.from_user.id)
+    await message.answer(t(language, "language_prompt"), reply_markup=language_keyboard())
+
+
+@router.message(StateFilter(None), F.text.in_(_all_button_texts("btn_cars")))
+async def browse_cars(message: Message, session_factory, bot: Bot, settings: Settings, state: FSMContext) -> None:
+    await state.clear()
+    await state.update_data(list_kind="all")
+    language = await get_user_language(session_factory, message.from_user.id)
+    await _show_car_page(bot, message.chat.id, message.from_user.id, session_factory, settings, state, 0, language)
+
+
+@router.callback_query(F.data == "menu:cars")
+async def browse_cars_callback(callback: CallbackQuery, session_factory, bot: Bot, settings: Settings, state: FSMContext) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    await state.clear()
+    await state.update_data(list_kind="all")
+    language = await get_user_language(session_factory, callback.from_user.id)
+    await callback.answer()
+    await _show_car_page(bot, callback.message.chat.id, callback.from_user.id, session_factory, settings, state, 0, language)
+
+
+@router.message(StateFilter(None), F.text.in_(_all_button_texts("btn_search")))
+async def start_search(message: Message, state: FSMContext, session_factory) -> None:
+    language = await get_user_language(session_factory, message.from_user.id)
+    await state.clear()
+    await state.update_data(list_kind="search")
+    await state.set_state(CustomerSearch.term)
+    await message.answer(t(language, "search_term_prompt"))
+
+
+@router.message(CustomerSearch.term)
+async def receive_search_term(message: Message, state: FSMContext, session_factory) -> None:
+    language = await get_user_language(session_factory, message.from_user.id)
+    term = (message.text or "").strip()
+    await state.update_data(term="" if term == "-" else term, list_kind="search")
+    await state.set_state(CustomerSearch.fuel)
+    await message.answer(
+        t(language, "search_fuel_prompt"),
+        reply_markup=fuel_keyboard(language, "search:fuel"),
+    )
+
+
+@router.callback_query(CustomerSearch.fuel, F.data.startswith("search:fuel:"))
+async def search_choose_fuel(callback: CallbackQuery, state: FSMContext, session_factory) -> None:
+    language = await get_user_language(session_factory, callback.from_user.id)
+    await state.update_data(fuel=str(callback.data).split(":")[-1])
+    await state.set_state(CustomerSearch.transmission)
+    await callback.answer()
+    if callback.message:
+        await callback.message.answer(
+            t(language, "search_transmission_prompt"),
+            reply_markup=transmission_keyboard(language, "search:trans"),
+        )
+
+
+@router.callback_query(CustomerSearch.transmission, F.data.startswith("search:trans:"))
+async def search_choose_transmission(callback: CallbackQuery, state: FSMContext, session_factory) -> None:
+    language = await get_user_language(session_factory, callback.from_user.id)
+    await state.update_data(transmission=str(callback.data).split(":")[-1])
+    await state.set_state(CustomerSearch.year_min)
+    await callback.answer()
+    if callback.message:
+        await callback.message.answer(t(language, "search_year_prompt"))
+
+
+@router.message(CustomerSearch.year_min)
+async def search_receive_year(message: Message, state: FSMContext, session_factory) -> None:
+    language = await get_user_language(session_factory, message.from_user.id)
+    try:
+        year = int((message.text or "").strip())
+        if year != 0 and not 1886 <= year <= 2100:
+            raise ValueError
+    except ValueError:
+        await message.answer(t(language, "admin_invalid_year"))
+        return
+    await state.update_data(year_min=year)
+    await state.set_state(CustomerSearch.price_max)
+    await message.answer(t(language, "search_price_prompt"))
+
+
+@router.message(CustomerSearch.price_max)
+async def search_receive_price(message: Message, state: FSMContext, session_factory, bot: Bot, settings: Settings) -> None:
+    language = await get_user_language(session_factory, message.from_user.id)
+    try:
+        price = Decimal((message.text or "").strip().replace(",", "."))
+        if price < 0:
+            raise InvalidOperation
+    except (InvalidOperation, ValueError):
+        await message.answer(t(language, "admin_invalid_number"))
+        return
+    await state.update_data(price_max=float(price) if price else None, list_kind="search")
+    await _show_car_page(bot, message.chat.id, message.from_user.id, session_factory, settings, state, 0, language)
+
+
+@router.callback_query(F.data.startswith("cars:page:"))
+async def change_car_page(callback: CallbackQuery, state: FSMContext, session_factory, bot: Bot, settings: Settings) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    page = max(0, int(str(callback.data).split(":")[-1]))
+    language = await get_user_language(session_factory, callback.from_user.id)
+    await callback.answer()
+    await _show_car_page(bot, callback.message.chat.id, callback.from_user.id, session_factory, settings, state, page, language)
+
+
+@router.message(StateFilter(None), F.text.in_(_all_button_texts("btn_favorites")))
+async def show_favorites(message: Message, state: FSMContext, session_factory, bot: Bot, settings: Settings) -> None:
+    await state.clear()
+    await state.update_data(list_kind="favorites")
+    language = await get_user_language(session_factory, message.from_user.id)
+    await _show_car_page(bot, message.chat.id, message.from_user.id, session_factory, settings, state, 0, language)
+
+
+@router.callback_query(F.data.startswith("car:"))
+async def open_car(callback: CallbackQuery, session_factory, bot: Bot, settings: Settings) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    car_id = int(str(callback.data).split(":")[1])
+    language = await get_user_language(session_factory, callback.from_user.id)
+    await callback.answer()
+    await _show_car(bot, callback.message.chat.id, callback.from_user.id, car_id, session_factory, settings, language)
+
+
+@router.callback_query(F.data.startswith("favorite:"))
+async def toggle_favorite(callback: CallbackQuery, session_factory, bot: Bot, settings: Settings) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    user_id = callback.from_user.id
+    car_id = int(str(callback.data).split(":")[1])
+    language = await get_user_language(session_factory, user_id)
+    async with session_factory() as session:
+        if await session.get(Car, car_id) is None:
+            await callback.answer(t(language, "car_missing"), show_alert=True)
+            return
+        favorite = await session.get(Favorite, (user_id, car_id))
+        if favorite:
+            await session.delete(favorite)
+            response = t(language, "favorite_removed")
+        else:
+            if await session.get(User, user_id) is None:
+                await save_telegram_user(session_factory, callback.from_user)
+            session.add(Favorite(user_id=user_id, car_id=car_id))
+            response = t(language, "favorite_added")
+        await session.commit()
+    await callback.answer(response)
+    await _show_car(bot, callback.message.chat.id, user_id, car_id, session_factory, settings, language)
+
+
+@router.callback_query(F.data.startswith("appointment:"))
+async def start_appointment(callback: CallbackQuery, state: FSMContext, session_factory) -> None:
+    if not callback.from_user:
+        await callback.answer()
+        return
+    car_id = int(str(callback.data).split(":")[1])
+    language = await get_user_language(session_factory, callback.from_user.id)
+    async with session_factory() as session:
+        car = await session.get(Car, car_id)
+        if car is None or car.status != "available":
+            await callback.answer(t(language, "car_missing"), show_alert=True)
+            return
+    await state.clear()
+    await state.update_data(car_id=car_id)
+    await state.set_state(ViewingRequestFlow.preferred_time)
+    await callback.answer()
+    if callback.message:
+        await callback.message.answer(t(language, "appointment_time_prompt"))
+
+
+@router.message(ViewingRequestFlow.preferred_time)
+async def appointment_receive_time(message: Message, state: FSMContext, session_factory) -> None:
+    language = await get_user_language(session_factory, message.from_user.id)
+    preferred_time = (message.text or "").strip()
+    if len(preferred_time) < 3:
+        await message.answer(t(language, "appointment_time_prompt"))
+        return
+    await state.update_data(preferred_time=preferred_time)
+    await state.set_state(ViewingRequestFlow.message)
+    await message.answer(t(language, "appointment_message_prompt"))
+
+
+@router.message(ViewingRequestFlow.message)
+async def appointment_receive_message(message: Message, state: FSMContext, session_factory, bot: Bot) -> None:
+    if not message.from_user:
+        return
+    data = await state.get_data()
+    language = await get_user_language(session_factory, message.from_user.id)
+    note = (message.text or "").strip()
+    note = "" if note == "-" else note
+    if len(note) > 2000:
+        await message.answer(t(language, "message_too_long"))
+        return
+    async with session_factory() as session:
+        user = await session.get(User, message.from_user.id)
+        if user is None:
+            user = User(
+                telegram_id=message.from_user.id,
+                username=message.from_user.username,
+                display_name=message.from_user.full_name,
+                language=language,
+            )
+            session.add(user)
+        car = await session.scalar(
+            select(Car).where(Car.id == data.get("car_id"), Car.status == "available")
+        )
+        if car is None:
+            await state.clear()
+            await message.answer(t(language, "car_missing"))
+            return
+        request = ViewingRequest(
+            user_id=message.from_user.id,
+            car_id=car.id,
+            preferred_time=data["preferred_time"],
+            message=note,
+        )
+        session.add(request)
+        await session.commit()
+        request_id = request.id
+        car_name = car.make_model
+    await state.clear()
+    await message.answer(t(language, "appointment_created"))
+    customer = message.from_user.full_name or str(message.from_user.id)
+    notify_text = t(
+        language,
+        "notify_new_request",
+        request_id=request_id,
+        car=escape(car_name),
+        customer=escape(customer),
+        user_id=message.from_user.id,
+        time=escape(data["preferred_time"]),
+        message=escape(note or "—"),
+    )
+    await notify_administrators(bot, session_factory, notify_text)
+
+
+@router.message(StateFilter(None), F.text.in_(_all_button_texts("btn_requests")))
+async def my_requests(message: Message, session_factory) -> None:
+    language = await get_user_language(session_factory, message.from_user.id)
+    async with session_factory() as session:
+        rows = (
+            await session.execute(
+                select(ViewingRequest, Car)
+                .join(Car, Car.id == ViewingRequest.car_id)
+                .where(ViewingRequest.user_id == message.from_user.id)
+                .order_by(ViewingRequest.created_at.desc())
+                .limit(25)
+            )
+        ).all()
+    if not rows:
+        await message.answer(t(language, "requests_empty"))
+        return
+    lines = [
+        f"#{request.id} · {escape(car.make_model)} · {escape(request.preferred_time)} · "
+        f"{t(language, STATUS_KEYS.get(request.status, 'status_pending'))}"
+        for request, car in rows
+    ]
+    await message.answer("\n".join(lines))
+
+
+@router.message(StateFilter(None), F.text.in_(_all_button_texts("btn_contact")))
+async def start_contact(message: Message, state: FSMContext, session_factory) -> None:
+    language = await get_user_language(session_factory, message.from_user.id)
+    await state.clear()
+    await state.set_state(ContactFlow.message)
+    await message.answer(t(language, "contact_prompt"))
+
+
+@router.message(ContactFlow.message)
+async def contact_business(message: Message, state: FSMContext, session_factory, bot: Bot) -> None:
+    if not message.from_user:
+        return
+    language = await get_user_language(session_factory, message.from_user.id)
+    body = (message.text or "").strip()
+    if not body:
+        await message.answer(t(language, "contact_prompt"))
+        return
+    if len(body) > 3500:
+        await message.answer(t(language, "message_too_long"))
+        return
+    customer = message.from_user.full_name or str(message.from_user.id)
+    text = t(
+        language,
+        "notify_contact",
+        customer=escape(customer),
+        user_id=message.from_user.id,
+        message=escape(body),
+    )
+    delivered = await notify_administrators(bot, session_factory, text)
+    await state.clear()
+    if delivered:
+        await message.answer(t(language, "contact_sent"))
+    else:
+        await message.answer(t(language, "no_admin"))
+
+
