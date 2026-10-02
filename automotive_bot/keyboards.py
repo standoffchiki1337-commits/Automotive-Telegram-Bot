@@ -24,7 +24,8 @@ def home_keyboard(language: str, is_admin: bool = False) -> ReplyKeyboardMarkup:
     rows = [
         [KeyboardButton(text=t(language, "btn_cars")), KeyboardButton(text=t(language, "btn_search"))],
         [KeyboardButton(text=t(language, "btn_favorites")), KeyboardButton(text=t(language, "btn_requests"))],
-        [KeyboardButton(text=t(language, "btn_contact")), KeyboardButton(text=t(language, "btn_language"))],
+        [KeyboardButton(text=t(language, "btn_profile")), KeyboardButton(text=t(language, "btn_contact"))],
+        [KeyboardButton(text=t(language, "btn_language"))],
     ]
     if is_admin:
         rows.append([KeyboardButton(text=t(language, "btn_admin"))])
@@ -32,9 +33,16 @@ def home_keyboard(language: str, is_admin: bool = False) -> ReplyKeyboardMarkup:
 
 
 def back_keyboard(language: str, callback: str = "menu:home") -> InlineKeyboardMarkup:
+    if callback == "menu:home":
+        return InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text=t(language, "btn_main_menu"), callback_data=callback)]
+            ]
+        )
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=t(language, "btn_back"), callback_data=callback)]
+            [InlineKeyboardButton(text=t(language, "btn_back"), callback_data=callback)],
+            [InlineKeyboardButton(text=t(language, "btn_main_menu"), callback_data="menu:home")],
         ]
     )
 
@@ -79,8 +87,14 @@ def car_actions(language: str, car_id: int, is_favorite: bool) -> InlineKeyboard
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=t(language, favorite_key), callback_data=f"favorite:{car_id}")],
-            [InlineKeyboardButton(text=t(language, "btn_appointment"), callback_data=f"appointment:{car_id}")],
-            [InlineKeyboardButton(text=t(language, "btn_back"), callback_data="menu:cars")],
+            [
+                InlineKeyboardButton(text=t(language, "btn_appointment"), callback_data=f"appointment:{car_id}"),
+                InlineKeyboardButton(text=t(language, "btn_contact"), callback_data=f"contact:car:{car_id}"),
+            ],
+            [
+                InlineKeyboardButton(text=t(language, "btn_back"), callback_data=f"car:back:{car_id}"),
+                InlineKeyboardButton(text=t(language, "btn_main_menu"), callback_data="menu:home"),
+            ],
         ]
     )
 
@@ -108,7 +122,15 @@ def car_results(
         )
     if pagination:
         rows.append(pagination)
-    rows.append([InlineKeyboardButton(text=t(language, "btn_back"), callback_data=back_callback)])
+    if back_callback == "menu:home":
+        rows.append([InlineKeyboardButton(text=t(language, "btn_main_menu"), callback_data="menu:home")])
+    else:
+        rows.append(
+            [
+                InlineKeyboardButton(text=t(language, "btn_back"), callback_data=back_callback),
+                InlineKeyboardButton(text=t(language, "btn_main_menu"), callback_data="menu:home"),
+            ]
+        )
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -134,27 +156,47 @@ def status_keyboard(language: str, car_id: int) -> InlineKeyboardMarkup:
 def admin_car_actions(language: str, car_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=t(language, "btn_edit"), callback_data=f"admin:edit:{car_id}")],
-            [InlineKeyboardButton(text=t(language, "btn_photos"), callback_data=f"admin:photos:{car_id}")],
+            [
+                InlineKeyboardButton(text=t(language, "btn_edit"), callback_data=f"admin:edit:{car_id}"),
+                InlineKeyboardButton(text=t(language, "btn_photos"), callback_data=f"admin:photos:{car_id}"),
+            ],
             [InlineKeyboardButton(text=t(language, "btn_delete"), callback_data=f"admin:delete:{car_id}")],
-            [InlineKeyboardButton(text=t(language, "btn_back"), callback_data="admin:cars:0")],
+            [
+                InlineKeyboardButton(text=t(language, "btn_back"), callback_data="admin:cars:0"),
+                InlineKeyboardButton(text=t(language, "btn_admin_menu"), callback_data="admin:panel"),
+            ],
+            [InlineKeyboardButton(text=t(language, "btn_main_menu"), callback_data="menu:home")],
         ]
     )
 
 
 def admin_menu_keyboard(language: str) -> InlineKeyboardMarkup:
-    options = [
-        ("btn_add_car", "admin:add"),
-        ("btn_manage_cars", "admin:cars:0"),
-        ("btn_manage_requests", "admin:requests"),
-        ("btn_manage_admins", "admin:admins"),
-        ("btn_stats", "admin:stats"),
-        ("btn_back", "menu:home"),
-    ]
+    add_car = InlineKeyboardButton(
+        text=t(language, "btn_add_car"), callback_data="admin:add"
+    )
+    manage_cars = InlineKeyboardButton(
+        text=t(language, "btn_manage_cars"), callback_data="admin:cars:0"
+    )
+    requests = InlineKeyboardButton(
+        text=t(language, "btn_manage_requests"), callback_data="admin:requests"
+    )
+    admins = InlineKeyboardButton(
+        text=t(language, "btn_manage_admins"), callback_data="admin:admins"
+    )
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text=t(language, label), callback_data=callback)]
-            for label, callback in options
+            [add_car, manage_cars],
+            [requests, admins],
+            [
+                InlineKeyboardButton(
+                    text=t(language, "btn_stats"), callback_data="admin:stats"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text=t(language, "btn_main_menu"), callback_data="menu:home"
+                )
+            ],
         ]
     )
 
@@ -214,5 +256,26 @@ def request_actions(language: str, request_id: int) -> InlineKeyboardMarkup:
             ]
             for status, label in options
         ]
-        + [[InlineKeyboardButton(text=t(language, "btn_back"), callback_data="admin:requests")]]
+        + [
+            [
+                InlineKeyboardButton(text=t(language, "btn_back"), callback_data="admin:requests"),
+                InlineKeyboardButton(text=t(language, "btn_admin_menu"), callback_data="admin:panel"),
+            ],
+            [InlineKeyboardButton(text=t(language, "btn_main_menu"), callback_data="menu:home")],
+        ]
+    )
+
+
+def profile_actions(language: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text=t(language, "btn_favorites"), callback_data="menu:favorites"),
+                InlineKeyboardButton(text=t(language, "btn_requests"), callback_data="menu:requests"),
+            ],
+            [
+                InlineKeyboardButton(text=t(language, "btn_contact"), callback_data="menu:contact"),
+                InlineKeyboardButton(text=t(language, "btn_main_menu"), callback_data="menu:home"),
+            ],
+        ]
     )

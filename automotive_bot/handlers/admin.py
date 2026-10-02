@@ -19,7 +19,14 @@ from sqlalchemy.orm import selectinload
 
 from automotive_bot.config import Settings
 from automotive_bot.filters import AdminOnly
-from automotive_bot.i18n import FUEL_KEYS, STATUS_KEYS, TEXTS, TRANSMISSION_KEYS, t
+from automotive_bot.i18n import (
+    FUEL_KEYS,
+    STATUS_KEYS,
+    TEXTS,
+    TRANSMISSION_KEYS,
+    status_badge,
+    t,
+)
 from automotive_bot.keyboards import (
     admin_car_actions,
     admin_menu_keyboard,
@@ -78,15 +85,17 @@ async def _admin_car_text(session_factory, car_id: int, language: str, settings:
         transmission = t(
             language, TRANSMISSION_KEYS.get(car.transmission, "trans_other")
         )
-        status = t(language, STATUS_KEYS.get(car.status, "status_available"))
         return (
             f"<b>{escape(car.make_model)}</b>\n"
-            f"{t(language, 'label_year')}: {car.year}\n"
-            f"{t(language, 'label_price')}: {money_text(car.price, settings.currency)}\n"
+            f"{status_badge(language, car.status)}\n"
+            "━━━━━━━━━━━━━━━━━━\n"
+            f"<b>{money_text(car.price, settings.currency)}</b>\n\n"
+            f"<b>{t(language, 'specifications')}</b>\n"
+            f"{t(language, 'label_year')}: {car.year}   ·   "
             f"{t(language, 'label_mileage')}: {car.mileage:,} {t(language, 'unit_km')}\n"
             f"{t(language, 'label_fuel')}: {fuel}\n"
             f"{t(language, 'label_transmission')}: {transmission}\n"
-            f"{t(language, 'label_status')}: {status}\n\n"
+            "\n"
             f"<b>{t(language, 'label_description')}:</b>\n{escape(car.description or '—')}"
         )
 
@@ -347,7 +356,7 @@ async def list_admin_cars(callback: CallbackQuery, session_factory, settings: Se
         (
             car.id,
             f"{car.make_model} — {money_text(car.price, settings.currency)} · "
-            f"{car.year} · {t(language, STATUS_KEYS.get(car.status, 'status_available'))}",
+             f"{car.year} · {status_badge(language, car.status)}",
         )
         for car in cars
     ]
