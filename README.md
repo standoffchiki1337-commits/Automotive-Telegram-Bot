@@ -4,11 +4,12 @@ An aiogram 3 bot for an automotive business. Customers can find vehicles, save f
 
 ## Features
 
-- Russian, Polish, and Ukrainian menus and customer flows
+- Russian, Polish, Ukrainian, English, and German menus and customer flows
 - Vehicle catalog with search by make/model or description, plus fuel, transmission, year, and price filters
-- Listing details with price, mileage, year, fuel type, transmission, description, status, and multiple Telegram photos
+- Compact single-message listing cards with price, mileage, year, fuel type, transmission, description, status badge, and photo navigation
 - Customer favorites and viewing-request history
-- Seller contact messages forwarded to administrators
+- Listing contact buttons open the Telegram account of the administrator who added the vehicle
+- Bot contact messages and viewing requests reach administrators with a clickable customer Telegram profile
 - Administrator tools for listing creation, editing, deletion, inventory status, and photos
 - Viewing request management with administrator notifications and customer status updates
 - Persistent SQLAlchemy storage using SQLite by default; PostgreSQL is supported through `DATABASE_URL`
@@ -56,7 +57,7 @@ Use `/start` to choose a language and open the menu. Customers can browse availa
 
 ## Administrator controls
 
-Open **Панель администратора / Panel administratora / Панель адміністратора** from the menu. Administrator access is stored in the database. The first administrator can be seeded with `ADMIN_IDS` or `automotive_bot.bootstrap_admin`; administrators can then add or remove other administrators from the bot.
+Open the administrator panel from the menu. Administrator access is stored in the database. The first administrator can be seeded with `ADMIN_IDS` or `automotive_bot.bootstrap_admin`; administrators can then add or remove other administrators from the bot.
 
 When adding photos, send up to 10 photos one at a time or as an album and finish with the **Done** button. Photos are referenced by their Telegram file IDs rather than copied into the database.
 
@@ -67,7 +68,7 @@ automotive_bot/
   config.py             Environment-based configuration
   database.py           Async engine and schema initialization
   models.py             Users, administrators, cars, photos, favorites, requests
-  i18n.py               Russian, Polish, and Ukrainian strings
+  i18n.py               Russian, Polish, Ukrainian, English, and German strings
   keyboards.py          Telegram menus and inline keyboards
   states.py             Customer and administrator conversation states
   handlers/

@@ -11,7 +11,13 @@ from automotive_bot.i18n import LANGUAGES, t
 
 
 def language_keyboard() -> InlineKeyboardMarkup:
-    labels = {"ru": "Русский", "pl": "Polski", "uk": "Українська"}
+    labels = {
+        "ru": "Русский",
+        "pl": "Polski",
+        "uk": "Українська",
+        "en": "English",
+        "de": "Deutsch",
+    }
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text=labels[code], callback_data=f"language:{code}")]
@@ -24,7 +30,10 @@ def home_keyboard(language: str, is_admin: bool = False) -> ReplyKeyboardMarkup:
     rows = [
         [KeyboardButton(text=t(language, "btn_cars")), KeyboardButton(text=t(language, "btn_search"))],
         [KeyboardButton(text=t(language, "btn_favorites")), KeyboardButton(text=t(language, "btn_requests"))],
-        [KeyboardButton(text=t(language, "btn_profile")), KeyboardButton(text=t(language, "btn_contact"))],
+        [
+            KeyboardButton(text=t(language, "btn_profile")),
+            KeyboardButton(text=t(language, "btn_business_message")),
+        ],
         [KeyboardButton(text=t(language, "btn_language"))],
     ]
     if is_admin:
@@ -82,21 +91,58 @@ def transmission_keyboard(language: str, callback_prefix: str) -> InlineKeyboard
     )
 
 
-def car_actions(language: str, car_id: int, is_favorite: bool) -> InlineKeyboardMarkup:
+def car_actions(
+    language: str,
+    car_id: int,
+    is_favorite: bool,
+    seller_url: str,
+    photo_count: int = 1,
+    photo_index: int = 0,
+) -> InlineKeyboardMarkup:
     favorite_key = "btn_unfavorite" if is_favorite else "btn_favorite"
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=t(language, favorite_key), callback_data=f"favorite:{car_id}")],
+    rows = [
+        [
+            InlineKeyboardButton(
+                text=t(language, favorite_key),
+                callback_data=f"favorite:{car_id}:{photo_index}",
+            )
+        ]
+    ]
+    if photo_count > 1:
+        previous_index = (photo_index - 1) % photo_count
+        next_index = (photo_index + 1) % photo_count
+        rows.append(
             [
-                InlineKeyboardButton(text=t(language, "btn_appointment"), callback_data=f"appointment:{car_id}"),
-                InlineKeyboardButton(text=t(language, "btn_contact"), callback_data=f"contact:car:{car_id}"),
+                InlineKeyboardButton(
+                    text="‹",
+                    callback_data=f"car:photo:{car_id}:{previous_index}",
+                ),
+                InlineKeyboardButton(
+                    text="›",
+                    callback_data=f"car:photo:{car_id}:{next_index}",
+                ),
+            ]
+        )
+    rows.extend(
+        [
+            [
+                InlineKeyboardButton(
+                    text=t(language, "btn_appointment"),
+                    callback_data=f"appointment:{car_id}",
+                ),
+                InlineKeyboardButton(text=t(language, "btn_contact"), url=seller_url),
             ],
             [
-                InlineKeyboardButton(text=t(language, "btn_back"), callback_data=f"car:back:{car_id}"),
-                InlineKeyboardButton(text=t(language, "btn_main_menu"), callback_data="menu:home"),
+                InlineKeyboardButton(
+                    text=t(language, "btn_back"), callback_data=f"car:back:{car_id}"
+                ),
+                InlineKeyboardButton(
+                    text=t(language, "btn_main_menu"), callback_data="menu:home"
+                ),
             ],
         ]
     )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def car_results(
@@ -274,7 +320,10 @@ def profile_actions(language: str) -> InlineKeyboardMarkup:
                 InlineKeyboardButton(text=t(language, "btn_requests"), callback_data="menu:requests"),
             ],
             [
-                InlineKeyboardButton(text=t(language, "btn_contact"), callback_data="menu:contact"),
+                InlineKeyboardButton(
+                    text=t(language, "btn_business_message"),
+                    callback_data="menu:contact",
+                ),
                 InlineKeyboardButton(text=t(language, "btn_main_menu"), callback_data="menu:home"),
             ],
         ]

@@ -25,13 +25,14 @@ A multilingual Telegram bot for browsing vehicle listings, managing favorites an
 - `automotive_bot/handlers/customer.py` — catalog, search, favorites, appointments, and contact
 - `automotive_bot/handlers/admin.py` — listings, photos, viewing requests, and administrator management
 - `automotive_bot/models.py` — persistent data model
-- `automotive_bot/i18n.py` — Russian, Polish, and Ukrainian bot text
+- `automotive_bot/i18n.py` — Russian, Polish, Ukrainian, English, and German bot text
 - `README.md` — configuration and run instructions
 
 ## Architecture decisions
 
 - Telegram long polling avoids requiring a public webhook endpoint.
 - Vehicle photos are referenced by Telegram file IDs rather than duplicated in the database.
+- Listing contact buttons open the Telegram account that created the listing; use its username when available and fall back to its Telegram user ID.
 - SQLite is the no-configuration development default; PostgreSQL works through `DATABASE_URL`.
 - First-admin access is explicitly bootstrapped by the project owner or an existing administrator, never assigned to an arbitrary first user.
 

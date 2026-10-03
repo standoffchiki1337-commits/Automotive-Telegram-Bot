@@ -18,7 +18,6 @@ from automotive_bot.config import Settings
 from automotive_bot.i18n import (
     FUEL_KEYS,
     LANGUAGES,
-    STATUS_KEYS,
     TEXTS,
     TRANSMISSION_KEYS,
     status_badge,
@@ -41,6 +40,8 @@ from automotive_bot.services import (
     money_text,
     notify_administrators,
     save_telegram_user,
+    telegram_user_link,
+    telegram_user_url,
 )
 from automotive_bot.states import ContactFlow, CustomerSearch, ViewingRequestFlow
 
@@ -77,7 +78,13 @@ async def _profile_text(session_factory, telegram_id: int, language: str) -> str
             )
             or 0
         )
-    language_names = {"ru": "Русский", "pl": "Polski", "uk": "Українська"}
+    language_names = {
+        "ru": "Русский",
+        "pl": "Polski",
+        "uk": "Українська",
+        "en": "English",
+        "de": "Deutsch",
+    }
     name = escape(user.display_name if user else str(telegram_id))
     username = (
         f"@{escape(user.username)}"
@@ -237,29 +244,69 @@ async def _show_car_page(
     )
 
 
-async def _car_details(session_factory, car_id: int, language: str, currency: str) -> str:
-    async with session_factory() as session:
-        car = await session.scalar(
-            select(Car).options(selectinload(Car.photos)).where(Car.id == car_id)
-        )
-        if car is None:
-            return t(language, "car_missing")
-        fuel = t(language, FUEL_KEYS.get(car.fuel_type, "fuel_any"))
-        transmission = t(
-            language, TRANSMISSION_KEYS.get(car.transmission, "trans_other")
-        )
-        return (
-            f"<b>{escape(car.make_model)}</b>\n"
-            f"{status_badge(language, car.status)}\n"
-            "━━━━━━━━━━━━━━━━━━\n"
-            f"<b>{money_text(car.price, currency)}</b>\n\n"
-            f"<b>{t(language, 'specifications')}</b>\n"
-            f"{t(language, 'label_year')}: {car.year}   ·   "
-            f"{t(language, 'label_mileage')}: {car.mileage:,} {t(language, 'unit_km')}\n"
-            f"{t(language, 'label_fuel')}: {fuel}\n"
-            f"{t(language, 'label_transmission')}: {transmission}\n\n"
-            f"<b>{t(language, 'label_description')}</b>\n{escape(car.description or '—')}"
-        )
+def _utf16_length(text: str) -> int:
+    return len(text.encode("utf-16-le")) // 2
+
+
+def _truncate_utf16(text: str, limit: int) -> str:
+    if _utf16_length(text) <= limit:
+        return text
+    if limit <= 0:
+        return ""
+    result: list[str] = []
+    used = 0
+    for character in text:
+        units = _utf16_length(character)
+        if used + units > limit - 1:
+            break
+        result.append(character)
+        used += units
+    return "".join(result).rstrip() + "…"
+
+
+def _car_caption(
+    car: Car,
+    language: str,
+    currency: str,
+    photo_index: int = 0,
+    photo_count: int = 0,
+) -> str:
+    fuel = t(language, FUEL_KEYS.get(car.fuel_type, "fuel_any"))
+    transmission = t(
+        language, TRANSMISSION_KEYS.get(car.transmission, "trans_other")
+    )
+    mileage = f"{car.mileage:,} {t(language, 'unit_km')}"
+    year_line = f"{t(language, 'label_year')}: {car.year}   ·   "
+    mileage_line = f"{t(language, 'label_mileage')}: {mileage}"
+    fuel_line = f"{t(language, 'label_fuel')}: {fuel}"
+    transmission_line = f"{t(language, 'label_transmission')}: {transmission}"
+    description_label = t(language, "label_description")
+    price = money_text(car.price, currency)
+    status = status_badge(language, car.status)
+    photo_counter = (
+        f"📷 {photo_index + 1}/{photo_count}\n" if photo_count > 1 else ""
+    )
+    fixed_text = (
+        f"{car.make_model}\n{status}\n{photo_counter}━━━━━━━━━━━━━━━━━━\n{price}\n\n"
+        f"{t(language, 'specifications')}\n{year_line}{mileage_line}\n"
+        f"{fuel_line}\n{transmission_line}\n\n{description_label}\n"
+    )
+    description = (car.description or "—").strip()
+    description = _truncate_utf16(
+        description, max(0, 970 - _utf16_length(fixed_text))
+    )
+    return (
+        f"<b>{escape(car.make_model)}</b>\n"
+        f"{status}\n"
+        f"{photo_counter}"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"<b>{price}</b>\n\n"
+        f"<b>{t(language, 'specifications')}</b>\n"
+        f"{year_line}{mileage_line}\n"
+        f"{fuel_line}\n"
+        f"{transmission_line}\n\n"
+        f"<b>{description_label}</b>\n{escape(description)}"
+    )
 
 
 async def _show_car(
@@ -270,7 +317,6 @@ async def _show_car(
     session_factory,
     settings: Settings,
     language: str,
-    state: FSMContext,
 ) -> None:
     async with session_factory() as session:
         car = await session.scalar(
@@ -286,8 +332,20 @@ async def _show_car(
         )
         photos = [photo.file_id for photo in car.photos]
         status = car.status
-    text = await _car_details(session_factory, car_id, language, settings.currency)
-    markup = car_actions(language, car_id, is_favorite)
+        seller = await session.get(User, car.created_by)
+        seller_url = telegram_user_url(
+            car.created_by, seller.username if seller else None
+        )
+        caption = _car_caption(
+            car, language, settings.currency, photo_count=len(photos)
+        )
+    markup = car_actions(
+        language,
+        car_id,
+        is_favorite,
+        seller_url,
+        photo_count=len(photos),
+    )
     if status != "available":
         markup.inline_keyboard = [
             row
@@ -295,17 +353,17 @@ async def _show_car(
             if not any(button.callback_data == f"appointment:{car_id}" for button in row)
         ]
     if photos:
-        summary = (
-            f"<b>{escape(car.make_model)}</b>\n"
-            f"{status_badge(language, status)}\n"
-            f"<b>{money_text(car.price, settings.currency)}</b>"
+        await bot.send_photo(
+            chat_id,
+            photo=photos[0],
+            caption=caption,
+            reply_markup=markup,
+            parse_mode="HTML",
         )
-        media = [
-            InputMediaPhoto(media=photos[0], caption=summary, parse_mode="HTML"),
-            *(InputMediaPhoto(media=file_id) for file_id in photos[1:10]),
-        ]
-        await bot.send_media_group(chat_id, media=media)
-    await bot.send_message(chat_id, text, reply_markup=markup, parse_mode="HTML")
+    else:
+        await bot.send_message(
+            chat_id, caption, reply_markup=markup, parse_mode="HTML"
+        )
 
 
 @router.message(Command("start"))
@@ -583,6 +641,71 @@ async def show_favorites(message: Message, state: FSMContext, session_factory, b
     await _show_car_page(bot, message.chat.id, message.from_user.id, session_factory, settings, state, 0, language)
 
 
+@router.callback_query(F.data.startswith("car:photo:"))
+async def change_car_photo(
+    callback: CallbackQuery,
+    session_factory,
+    settings: Settings,
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    _, _, raw_car_id, raw_index = str(callback.data).split(":")
+    car_id, photo_index = int(raw_car_id), int(raw_index)
+    language = await get_user_language(session_factory, callback.from_user.id)
+    async with session_factory() as session:
+        car = await session.scalar(
+            select(Car)
+            .options(selectinload(Car.photos))
+            .where(Car.id == car_id)
+        )
+        if car is None or not car.photos:
+            await callback.answer(t(language, "car_missing"), show_alert=True)
+            return
+        photos = [photo.file_id for photo in car.photos]
+        if not 0 <= photo_index < len(photos):
+            await callback.answer()
+            return
+        is_favorite = await session.get(
+            Favorite, (callback.from_user.id, car_id)
+        ) is not None
+        seller = await session.get(User, car.created_by)
+        seller_url = telegram_user_url(
+            car.created_by, seller.username if seller else None
+        )
+        status = car.status
+        caption = _car_caption(
+            car,
+            language,
+            settings.currency,
+            photo_index=photo_index,
+            photo_count=len(photos),
+        )
+    markup = car_actions(
+        language,
+        car_id,
+        is_favorite,
+        seller_url,
+        photo_count=len(photos),
+        photo_index=photo_index,
+    )
+    if status != "available":
+        markup.inline_keyboard = [
+            row
+            for row in markup.inline_keyboard
+            if not any(
+                button.callback_data == f"appointment:{car_id}" for button in row
+            )
+        ]
+    await callback.answer()
+    await callback.message.edit_media(
+        media=InputMediaPhoto(
+            media=photos[photo_index], caption=caption, parse_mode="HTML"
+        ),
+        reply_markup=markup,
+    )
+
+
 @router.callback_query(F.data.startswith("car:back:"))
 async def back_to_car_list(
     callback: CallbackQuery,
@@ -621,7 +744,6 @@ async def open_car(
     session_factory,
     bot: Bot,
     settings: Settings,
-    state: FSMContext,
 ) -> None:
     if not callback.from_user or not callback.message:
         await callback.answer()
@@ -631,7 +753,7 @@ async def open_car(
     await callback.answer()
     await _show_car(
         bot, callback.message.chat.id, callback.from_user.id, car_id,
-        session_factory, settings, language, state
+        session_factory, settings, language
     )
 
 
@@ -639,18 +761,22 @@ async def open_car(
 async def toggle_favorite(
     callback: CallbackQuery,
     session_factory,
-    bot: Bot,
-    settings: Settings,
-    state: FSMContext,
 ) -> None:
     if not callback.from_user or not callback.message:
         await callback.answer()
         return
     user_id = callback.from_user.id
-    car_id = int(str(callback.data).split(":")[1])
+    parts = str(callback.data).split(":")
+    car_id = int(parts[1])
+    photo_index = int(parts[2]) if len(parts) > 2 else 0
     language = await get_user_language(session_factory, user_id)
     async with session_factory() as session:
-        if await session.get(Car, car_id) is None:
+        car = await session.scalar(
+            select(Car)
+            .options(selectinload(Car.photos))
+            .where(Car.id == car_id)
+        )
+        if car is None:
             await callback.answer(t(language, "car_missing"), show_alert=True)
             return
         favorite = await session.get(Favorite, (user_id, car_id))
@@ -662,12 +788,31 @@ async def toggle_favorite(
                 await save_telegram_user(session_factory, callback.from_user)
             session.add(Favorite(user_id=user_id, car_id=car_id))
             response = t(language, "favorite_added")
+        photos_count = len(car.photos)
+        seller = await session.get(User, car.created_by)
+        seller_url = telegram_user_url(
+            car.created_by, seller.username if seller else None
+        )
+        status = car.status
         await session.commit()
-    await callback.answer(response)
-    await _show_car(
-        bot, callback.message.chat.id, user_id, car_id,
-        session_factory, settings, language, state
+    markup = car_actions(
+        language,
+        car_id,
+        not bool(favorite),
+        seller_url,
+        photo_count=photos_count,
+        photo_index=min(photo_index, max(photos_count - 1, 0)),
     )
+    if status != "available":
+        markup.inline_keyboard = [
+            row
+            for row in markup.inline_keyboard
+            if not any(
+                button.callback_data == f"appointment:{car_id}" for button in row
+            )
+        ]
+    await callback.answer(response)
+    await callback.message.edit_reply_markup(reply_markup=markup)
 
 
 @router.callback_query(F.data.startswith("appointment:"))
@@ -729,6 +874,9 @@ async def appointment_receive_message(message: Message, state: FSMContext, sessi
                 language=language,
             )
             session.add(user)
+        else:
+            user.username = message.from_user.username
+            user.display_name = message.from_user.full_name
         car = await session.scalar(
             select(Car).where(Car.id == data.get("car_id"), Car.status == "available")
         )
@@ -755,6 +903,9 @@ async def appointment_receive_message(message: Message, state: FSMContext, sessi
         request_id=request_id,
         car=escape(car_name),
         customer=escape(customer),
+        customer_link=telegram_user_link(
+            message.from_user.id, message.from_user.username, language
+        ),
         user_id=message.from_user.id,
         time=escape(data["preferred_time"]),
         message=escape(note or "—"),
@@ -772,7 +923,12 @@ async def my_requests(message: Message, session_factory) -> None:
     )
 
 
-@router.message(StateFilter(None), F.text.in_(_all_button_texts("btn_contact")))
+@router.message(
+    StateFilter(None),
+    F.text.in_(
+        _all_button_texts("btn_business_message") | _all_button_texts("btn_contact")
+    ),
+)
 async def start_contact(message: Message, state: FSMContext, session_factory) -> None:
     language = await get_user_language(session_factory, message.from_user.id)
     await state.clear()
@@ -821,6 +977,9 @@ async def contact_business(message: Message, state: FSMContext, session_factory,
     data = await state.get_data()
     car_id = data.get("car_id")
     customer = escape(message.from_user.full_name or str(message.from_user.id))
+    customer_link = telegram_user_link(
+        message.from_user.id, message.from_user.username, language
+    )
     if car_id:
         async with session_factory() as session:
             car = await session.get(Car, int(car_id))
@@ -833,6 +992,7 @@ async def contact_business(message: Message, state: FSMContext, session_factory,
                 "notify_listing_contact",
                 car=escape(car.make_model),
                 customer=customer,
+                customer_link=customer_link,
                 user_id=message.from_user.id,
                 message=escape(body),
             )
@@ -841,6 +1001,7 @@ async def contact_business(message: Message, state: FSMContext, session_factory,
             language,
             "notify_contact",
             customer=customer,
+            customer_link=customer_link,
             user_id=message.from_user.id,
             message=escape(body),
         )

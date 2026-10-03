@@ -3,12 +3,14 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 from html import escape
+from urllib.parse import quote
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError, TelegramForbiddenError
 from aiogram.types import User as TelegramUser
 from sqlalchemy import select
 
+from automotive_bot.i18n import t
 from automotive_bot.models import Administrator, User
 
 logger = logging.getLogger(__name__)
@@ -86,3 +88,22 @@ def display_name(user: User | None, telegram_id: int) -> str:
     if user.username:
         return f"{user.display_name} (@{user.username})"
     return user.display_name or str(telegram_id)
+
+
+def telegram_user_url(telegram_id: int, username: str | None) -> str:
+    if username:
+        return f"https://t.me/{quote(username, safe='')}"
+    return f"tg://user?id={telegram_id}"
+
+
+def telegram_user_link(
+    telegram_id: int, username: str | None, language: str
+) -> str:
+    if username:
+        label = f"@{username}"
+    else:
+        label = t(language, "open_telegram_profile")
+    return (
+        f'<a href="{escape(telegram_user_url(telegram_id, username), quote=True)}">'
+        f"{escape(label)}</a>"
+    )

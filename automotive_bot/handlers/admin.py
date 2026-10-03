@@ -46,9 +46,9 @@ from automotive_bot.models import (
     ViewingRequest,
 )
 from automotive_bot.services import (
-    display_name,
     get_user_language,
     money_text,
+    telegram_user_link,
 )
 from automotive_bot.states import AddCarFlow, AdministratorFlow, EditCarFlow
 
@@ -717,7 +717,10 @@ async def open_viewing_request(callback: CallbackQuery, session_factory) -> None
         "request_details",
         request_id=request.id,
         car=escape(car.make_model),
-        customer=escape(display_name(customer, request.user_id)),
+        customer=escape(customer.display_name or str(request.user_id)),
+        customer_link=telegram_user_link(
+            request.user_id, customer.username, language
+        ),
         user_id=request.user_id,
         time=escape(request.preferred_time),
         message=escape(request.message or "—"),
