@@ -9,6 +9,12 @@ Keep this project as the existing aiogram Telegram bot. Preserve customer and ad
 
 **How to apply:** Prefer changes within the existing bot and stack. Ask before broadening the project or changing stored-data behavior.
 
+For Railway, use one service built from the repository root to run the Python bot. Do not deploy the JavaScript workspace packages as separate Railway services.
+
+**Why:** The owner explicitly requested a single Railway bot service instead of multiple services created by JavaScript monorepo auto-import.
+
+**How to apply:** Keep Railway build and start configuration targeted at the root Python bot; do not delete existing Railway services without checking their data and volumes.
+
 For listing contact, use the Telegram account that created the listing. Link to its public username when available and fall back to its Telegram user ID when not.
 
 **Why:** This uses existing listing ownership without adding a separate seller-handle setting. The owner has not separately confirmed that the creator is always the intended seller.
