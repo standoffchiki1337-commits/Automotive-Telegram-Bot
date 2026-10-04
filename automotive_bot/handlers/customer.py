@@ -4,7 +4,6 @@ from decimal import Decimal, InvalidOperation
 from html import escape
 
 from aiogram import Bot, F, Router
-from aiogram.dispatcher.event.bases import SkipHandler
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
@@ -409,16 +408,13 @@ async def cancel_command(message: Message, state: FSMContext, session_factory) -
 
 
 @router.message(F.text.in_(_all_menu_button_texts()))
-async def navigate_from_active_flow(
+async def navigate_from_main_menu(
     message: Message,
     state: FSMContext,
     session_factory,
     bot: Bot,
     settings: Settings,
 ) -> None:
-    if await state.get_state() is None:
-        raise SkipHandler()
-
     if not message.from_user or not message.text:
         return
 
