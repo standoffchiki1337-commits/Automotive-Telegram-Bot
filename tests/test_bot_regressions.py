@@ -4,9 +4,12 @@ import unittest
 
 from automotive_bot.appointment_calendar import (
     DEALERSHIP_TIMEZONE,
+    appointment_date_keyboard,
     appointment_hour_keyboard,
+    appointment_month_keyboard,
     appointment_minute_keyboard,
     appointment_time_is_future,
+    latest_appointment_date,
 )
 from automotive_bot.config import Settings
 from automotive_bot.database import create_database, initialize_database
@@ -117,6 +120,30 @@ class AppointmentTimeTests(unittest.TestCase):
 
         self.assertFalse(appointment_time_is_future(date(2026, 10, 4), 11, 30, now))
         self.assertTrue(appointment_time_is_future(date(2026, 10, 4), 11, 36, now))
+
+    def test_calendar_supports_direct_month_and_year_selection(self) -> None:
+        today = date(2026, 10, 4)
+        calendar_keyboard = appointment_date_keyboard("ru", 2026, 10, today)
+        month_button = calendar_keyboard.inline_keyboard[0][0]
+        self.assertEqual(month_button.callback_data, "viewing:select-month:2026:10")
+
+        picker = appointment_month_keyboard("de", 2027, 10, today)
+        callbacks = {
+            button.callback_data
+            for row in picker.inline_keyboard
+            for button in row
+        }
+        self.assertIn("viewing:month:2027:3", callbacks)
+        self.assertIn("viewing:year:2026:10", callbacks)
+        self.assertIn("viewing:calendar:2027:10", callbacks)
+
+    def test_appointment_horizon_is_one_calendar_year_including_leap_day(self) -> None:
+        self.assertEqual(
+            latest_appointment_date(date(2026, 10, 4)), date(2027, 10, 4)
+        )
+        self.assertEqual(
+            latest_appointment_date(date(2024, 2, 29)), date(2025, 2, 28)
+        )
 
 
 if __name__ == "__main__":

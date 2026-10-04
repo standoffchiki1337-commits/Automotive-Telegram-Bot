@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import calendar
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
@@ -9,7 +9,15 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from automotive_bot.i18n import t
 
 DEALERSHIP_TIMEZONE = ZoneInfo("Europe/Warsaw")
-MAX_ADVANCE_DAYS = 90
+
+
+def latest_appointment_date(today: date | None = None) -> date:
+    current = today or dealership_today()
+    try:
+        return current.replace(year=current.year + 1)
+    except ValueError:
+        # Keep leap-day bookings within the same one-year window.
+        return current.replace(year=current.year + 1, day=28)
 
 MONTHS = {
     "ru": (
@@ -66,7 +74,7 @@ def appointment_date_keyboard(
     language: str, year: int, month: int, today: date | None = None
 ) -> InlineKeyboardMarkup:
     today = today or dealership_today()
-    latest = today + timedelta(days=MAX_ADVANCE_DAYS)
+    latest = latest_appointment_date(today)
     first_month = today.replace(day=1)
     last_month = latest.replace(day=1)
     requested_month = date(year, month, 1)
@@ -82,7 +90,7 @@ def appointment_date_keyboard(
         [
             InlineKeyboardButton(
                 text=f"{months[month - 1]} {year}",
-                callback_data="viewing:noop",
+                callback_data=f"viewing:select-month:{year}:{month}",
             )
         ],
         [
@@ -139,6 +147,75 @@ def appointment_date_keyboard(
             InlineKeyboardButton(
                 text=t(language, "btn_cancel"), callback_data="viewing:cancel"
             )
+        ]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def appointment_month_keyboard(
+    language: str,
+    year: int,
+    selected_month: int,
+    today: date | None = None,
+) -> InlineKeyboardMarkup:
+    today = today or dealership_today()
+    first_month = today.replace(day=1)
+    last_month = latest_appointment_date(today).replace(day=1)
+    year = min(max(year, first_month.year), last_month.year)
+    months = MONTHS.get(language, MONTHS["ru"])
+
+    previous_year = year - 1
+    following_year = year + 1
+    rows = [
+        [
+            InlineKeyboardButton(
+                text="‹",
+                callback_data=(
+                    f"viewing:year:{previous_year}:{selected_month}"
+                    if previous_year >= first_month.year
+                    else "viewing:noop"
+                ),
+            ),
+            InlineKeyboardButton(text=str(year), callback_data="viewing:noop"),
+            InlineKeyboardButton(
+                text="›",
+                callback_data=(
+                    f"viewing:year:{following_year}:{selected_month}"
+                    if following_year <= last_month.year
+                    else "viewing:noop"
+                ),
+            ),
+        ]
+    ]
+    for start in range(1, 13, 3):
+        row = []
+        for month in range(start, start + 3):
+            month_date = date(year, month, 1)
+            is_available = first_month <= month_date <= last_month
+            row.append(
+                InlineKeyboardButton(
+                    text=(
+                        f"✓ {months[month - 1]}"
+                        if month == selected_month
+                        else months[month - 1]
+                    ),
+                    callback_data=(
+                        f"viewing:month:{year}:{month}"
+                        if is_available
+                        else "viewing:noop"
+                    ),
+                )
+            )
+        rows.append(row)
+    rows.append(
+        [
+            InlineKeyboardButton(
+                text=t(language, "appointment_back_date"),
+                callback_data=f"viewing:calendar:{year}:{selected_month}",
+            ),
+            InlineKeyboardButton(
+                text=t(language, "btn_cancel"), callback_data="viewing:cancel"
+            ),
         ]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)

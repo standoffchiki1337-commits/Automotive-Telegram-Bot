@@ -19,14 +19,15 @@ from sqlalchemy.orm import selectinload
 
 from automotive_bot.config import Settings
 from automotive_bot.appointment_calendar import (
-    MAX_ADVANCE_DAYS,
     DEALERSHIP_TIMEZONE,
     appointment_time_is_future,
     appointment_confirmation_keyboard,
     appointment_date_keyboard,
     appointment_hour_keyboard,
+    appointment_month_keyboard,
     appointment_minute_keyboard,
     dealership_today,
+    latest_appointment_date,
 )
 from automotive_bot.i18n import (
     FUEL_KEYS,
@@ -994,6 +995,64 @@ async def appointment_change_month(
 
 
 @router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data.startswith("viewing:select-month:")
+)
+async def appointment_open_month_picker(
+    callback: CallbackQuery, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    _, _, _, raw_year, raw_month = str(callback.data).split(":")
+    await callback.answer()
+    await callback.message.edit_reply_markup(
+        reply_markup=appointment_month_keyboard(
+            language, int(raw_year), int(raw_month), dealership_today()
+        )
+    )
+
+
+@router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data.startswith("viewing:year:")
+)
+async def appointment_change_picker_year(
+    callback: CallbackQuery, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    _, _, raw_year, raw_month = str(callback.data).split(":")
+    await callback.answer()
+    await callback.message.edit_reply_markup(
+        reply_markup=appointment_month_keyboard(
+            language, int(raw_year), int(raw_month), dealership_today()
+        )
+    )
+
+
+@router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data.startswith("viewing:calendar:")
+)
+async def appointment_return_from_month_picker(
+    callback: CallbackQuery, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    _, _, raw_year, raw_month = str(callback.data).split(":")
+    today = dealership_today()
+    await callback.answer()
+    await callback.message.edit_reply_markup(
+        reply_markup=appointment_date_keyboard(
+            language, int(raw_year), int(raw_month), today
+        )
+    )
+
+
+@router.callback_query(
     ViewingRequestFlow.preferred_time, F.data.startswith("viewing:date:")
 )
 async def appointment_choose_date(
@@ -1005,7 +1064,7 @@ async def appointment_choose_date(
     language = await get_user_language(session_factory, callback.from_user.id)
     selected_date = date.fromisoformat(str(callback.data).split(":")[-1])
     today = dealership_today()
-    if not today <= selected_date <= today + timedelta(days=MAX_ADVANCE_DAYS):
+    if not today <= selected_date <= latest_appointment_date(today):
         await callback.answer(
             t(language, "appointment_invalid_date"), show_alert=True
         )
@@ -1190,7 +1249,7 @@ async def appointment_confirm_time(
         or minute is None
         or not today
         <= date.fromisoformat(selected_date)
-        <= today + timedelta(days=MAX_ADVANCE_DAYS)
+        <= latest_appointment_date(today)
     ):
         language = await get_user_language(session_factory, callback.from_user.id)
         await callback.answer(
