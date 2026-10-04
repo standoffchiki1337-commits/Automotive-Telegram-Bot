@@ -5,6 +5,12 @@ description: Standing scope constraints and the seller identity assumption for c
 
 Keep this project as the existing aiogram Telegram bot. Preserve customer and administrator flows, PostgreSQL support, long polling, and persistent data. Do not add web apps, paid services, AI features, dependencies, deployments, or extra services without an explicit request.
 
+Бот работает у пользователя на Railway; здесь агент меняет код, а не настраивает запуск на Replit.
+
+**Why:** Пользователь сказал: «Я бота держу на рейл вее а ты меняешь код».
+
+**How to apply:** Работать над запрошенными изменениями кода; не запускать и не настраивать бот на Replit без отдельного запроса.
+
 **Why:** The owner set these constraints as the expected scope for work on this project.
 
 **How to apply:** Prefer changes within the existing bot and stack. Ask before broadening the project or changing stored-data behavior.
