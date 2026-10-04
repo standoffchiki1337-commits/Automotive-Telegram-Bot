@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from html import escape
 from pathlib import Path
@@ -17,11 +18,22 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import selectinload
 
 from automotive_bot.config import Settings
+from automotive_bot.appointment_calendar import (
+    MAX_ADVANCE_DAYS,
+    DEALERSHIP_TIMEZONE,
+    appointment_confirmation_keyboard,
+    appointment_date_keyboard,
+    appointment_hour_keyboard,
+    appointment_minute_keyboard,
+    dealership_today,
+)
 from automotive_bot.i18n import (
     FUEL_KEYS,
     LANGUAGES,
     TEXTS,
     TRANSMISSION_KEYS,
+    fuel_label,
+    selected_fuel_types,
     status_badge,
     t,
 )
@@ -43,6 +55,7 @@ from automotive_bot.services import (
     money_text,
     notify_administrators,
     primary_administrator_url,
+    remember_user_language,
     save_telegram_user,
     telegram_user_link,
 )
@@ -159,7 +172,14 @@ async def _search_conditions(filters: dict) -> list:
         )
     fuel = filters.get("fuel")
     if fuel and fuel != "any":
-        conditions.append(Car.fuel_type == fuel)
+        conditions.append(
+            or_(
+                Car.fuel_type == fuel,
+                Car.fuel_type.like(f"{fuel}+%"),
+                Car.fuel_type.like(f"%+{fuel}"),
+                Car.fuel_type.like(f"%+{fuel}+%"),
+            )
+        )
     transmission = filters.get("transmission")
     if transmission and transmission != "any":
         conditions.append(Car.transmission == transmission)
@@ -181,6 +201,7 @@ async def _show_car_page(
     state: FSMContext,
     page: int,
     language: str,
+    replace_message: Message | None = None,
 ) -> None:
     page_size = 8
     data = await state.get_data()
@@ -229,9 +250,14 @@ async def _show_car_page(
             message = t(language, "search_none")
         else:
             message = t(language, "cars_empty")
-        await bot.send_message(
-            chat_id, message, reply_markup=back_keyboard(language)
-        )
+        if replace_message:
+            await replace_message.edit_text(
+                message, reply_markup=back_keyboard(language)
+            )
+        else:
+            await bot.send_message(
+                chat_id, message, reply_markup=back_keyboard(language)
+            )
         return
 
     await state.update_data(list_page=page)
@@ -242,7 +268,6 @@ async def _show_car_page(
                 language,
                 "car_list_line",
                 name=car.make_model,
-                price=money_text(car.price, settings.currency),
                 year=car.year,
             ).replace("  ·", " ·")
             + f" · {status_badge(language, car.status)}",
@@ -256,17 +281,18 @@ async def _show_car_page(
         if list_kind == "favorites"
         else "btn_cars"
     )
-    await bot.send_message(
-        chat_id,
-        f"{t(language, heading)} ({total})",
-        reply_markup=car_results(
-            language,
-            rows,
-            page,
-            has_more,
-            back_callback="menu:home",
-        ),
+    text = f"{t(language, heading)} ({total})"
+    markup = car_results(
+        language,
+        rows,
+        page,
+        has_more,
+        back_callback="menu:home",
     )
+    if replace_message:
+        await replace_message.edit_text(text, reply_markup=markup)
+    else:
+        await bot.send_message(chat_id, text, reply_markup=markup)
 
 
 def _utf16_length(text: str) -> int:
@@ -296,7 +322,7 @@ def _car_caption(
     photo_index: int = 0,
     photo_count: int = 0,
 ) -> str:
-    fuel = t(language, FUEL_KEYS.get(car.fuel_type, "fuel_any"))
+    fuel = fuel_label(language, car.fuel_type)
     transmission = t(
         language, TRANSMISSION_KEYS.get(car.transmission, "trans_other")
     )
@@ -479,6 +505,7 @@ async def choose_language(callback: CallbackQuery, session_factory) -> None:
         if user:
             user.language = language
             await session.commit()
+    remember_user_language(callback.from_user.id, language)
     admin = await is_administrator(session_factory, callback.from_user.id)
     await callback.answer(t(language, "language_set"))
     if callback.message:
@@ -707,7 +734,17 @@ async def change_car_page(callback: CallbackQuery, state: FSMContext, session_fa
     page = max(0, int(str(callback.data).split(":")[-1]))
     language = await get_user_language(session_factory, callback.from_user.id)
     await callback.answer()
-    await _show_car_page(bot, callback.message.chat.id, callback.from_user.id, session_factory, settings, state, page, language)
+    await _show_car_page(
+        bot,
+        callback.message.chat.id,
+        callback.from_user.id,
+        session_factory,
+        settings,
+        state,
+        page,
+        language,
+        replace_message=callback.message,
+    )
 
 
 @router.message(StateFilter(None), F.text.in_(_all_button_texts("btn_favorites")))
@@ -800,6 +837,7 @@ async def back_to_car_list(
     await state.update_data(list_kind=list_kind)
     language = await get_user_language(session_factory, callback.from_user.id)
     await callback.answer()
+    await callback.message.delete()
     await _show_car_page(
         bot,
         callback.message.chat.id,
@@ -825,6 +863,7 @@ async def open_car(
     car_id = int(str(callback.data).split(":")[1])
     language = await get_user_language(session_factory, callback.from_user.id)
     await callback.answer()
+    await callback.message.delete()
     await _show_car(
         bot, callback.message.chat.id, callback.from_user.id, car_id,
         session_factory, settings, language
@@ -886,7 +925,7 @@ async def toggle_favorite(
     await callback.message.edit_reply_markup(reply_markup=markup)
 
 
-@router.callback_query(F.data.startswith("appointment:"))
+@router.callback_query(F.data.regexp(r"^appointment:[0-9]+$"))
 async def start_appointment(callback: CallbackQuery, state: FSMContext, session_factory) -> None:
     if not callback.from_user:
         await callback.answer()
@@ -902,26 +941,290 @@ async def start_appointment(callback: CallbackQuery, state: FSMContext, session_
     await state.set_state(ViewingRequestFlow.preferred_time)
     await callback.answer()
     if callback.message:
+        today = dealership_today()
         await callback.message.answer(
-            t(language, "appointment_time_prompt"),
-            reply_markup=back_keyboard(language, f"car:{car_id}"),
+            f"{t(language, 'appointment_time_prompt')}\n\n"
+            f"{t(language, 'appointment_timezone')}",
+            reply_markup=appointment_date_keyboard(
+                language, today.year, today.month, today
+            ),
         )
 
 
 @router.message(ViewingRequestFlow.preferred_time)
-async def appointment_receive_time(message: Message, state: FSMContext, session_factory) -> None:
+async def appointment_picker_reminder(
+    message: Message, state: FSMContext, session_factory
+) -> None:
     language = await get_user_language(session_factory, message.from_user.id)
-    preferred_time = (message.text or "").strip()
-    if len(preferred_time) < 3:
-        await message.answer(t(language, "appointment_time_prompt"))
+    data = await state.get_data()
+    selected_date = data.get("appointment_date")
+    view_date = (
+        date.fromisoformat(selected_date)
+        if selected_date
+        else dealership_today()
+    )
+    await message.answer(
+        f"{t(language, 'appointment_time_prompt')}\n\n"
+        f"{t(language, 'appointment_timezone')}",
+        reply_markup=appointment_date_keyboard(
+            language, view_date.year, view_date.month
+        ),
+    )
+
+
+@router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data.startswith("viewing:month:")
+)
+async def appointment_change_month(
+    callback: CallbackQuery, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
         return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    _, _, _, raw_year, raw_month = str(callback.data).split(":")
+    today = dealership_today()
+    await callback.answer()
+    await callback.message.edit_reply_markup(
+        reply_markup=appointment_date_keyboard(
+            language, int(raw_year), int(raw_month), today
+        )
+    )
+
+
+@router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data.startswith("viewing:date:")
+)
+async def appointment_choose_date(
+    callback: CallbackQuery, state: FSMContext, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    selected_date = date.fromisoformat(str(callback.data).split(":")[-1])
+    today = dealership_today()
+    if not today <= selected_date <= today + timedelta(days=MAX_ADVANCE_DAYS):
+        await callback.answer(
+            t(language, "appointment_invalid_date"), show_alert=True
+        )
+        return
+    await state.update_data(
+        appointment_date=selected_date.isoformat(),
+        appointment_hour=None,
+        appointment_minute=None,
+    )
+    await callback.answer()
+    await callback.message.edit_text(
+        f"{t(language, 'appointment_pick_hour', date=selected_date.strftime('%d.%m.%Y'))}\n\n"
+        f"{t(language, 'appointment_timezone')}",
+        reply_markup=appointment_hour_keyboard(language),
+    )
+
+
+@router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data == "viewing:choose-date"
+)
+async def appointment_return_to_calendar(
+    callback: CallbackQuery, state: FSMContext, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    data = await state.get_data()
+    selected_date = data.get("appointment_date")
+    view_date = date.fromisoformat(selected_date) if selected_date else dealership_today()
+    today = dealership_today()
+    await callback.answer()
+    await callback.message.edit_text(
+        f"{t(language, 'appointment_time_prompt')}\n\n"
+        f"{t(language, 'appointment_timezone')}",
+        reply_markup=appointment_date_keyboard(
+            language, view_date.year, view_date.month, today
+        ),
+    )
+
+
+@router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data.startswith("viewing:hour:")
+)
+async def appointment_choose_hour(
+    callback: CallbackQuery, state: FSMContext, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    data = await state.get_data()
+    selected_date = data.get("appointment_date")
+    if not selected_date:
+        await callback.answer(t(language, "appointment_invalid_date"), show_alert=True)
+        return
+    hour = int(str(callback.data).split(":")[-1])
+    if not 0 <= hour <= 23:
+        await callback.answer()
+        return
+    await state.update_data(appointment_hour=hour, appointment_minute=None)
+    await callback.answer()
+    await callback.message.edit_text(
+        f"{t(language, 'appointment_pick_minute', date=date.fromisoformat(selected_date).strftime('%d.%m.%Y'), hour=f'{hour:02d}:__')}\n\n"
+        f"{t(language, 'appointment_timezone')}",
+        reply_markup=appointment_minute_keyboard(language),
+    )
+
+
+@router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data == "viewing:choose-hour"
+)
+async def appointment_return_to_hours(
+    callback: CallbackQuery, state: FSMContext, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    data = await state.get_data()
+    selected_date = data.get("appointment_date")
+    if not selected_date:
+        await callback.answer(t(language, "appointment_invalid_date"), show_alert=True)
+        return
+    await callback.answer()
+    await callback.message.edit_text(
+        f"{t(language, 'appointment_pick_hour', date=date.fromisoformat(selected_date).strftime('%d.%m.%Y'))}\n\n"
+        f"{t(language, 'appointment_timezone')}",
+        reply_markup=appointment_hour_keyboard(language),
+    )
+
+
+@router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data.startswith("viewing:minute:")
+)
+async def appointment_choose_minute(
+    callback: CallbackQuery, state: FSMContext, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    data = await state.get_data()
+    selected_date = data.get("appointment_date")
+    hour = data.get("appointment_hour")
+    if selected_date is None or hour is None:
+        await callback.answer(t(language, "appointment_invalid_date"), show_alert=True)
+        return
+    minute = int(str(callback.data).split(":")[-1])
+    if not 0 <= minute <= 59:
+        await callback.answer()
+        return
+    await state.update_data(appointment_minute=minute)
+    chosen = datetime.combine(
+        date.fromisoformat(selected_date),
+        datetime.min.time().replace(hour=hour, minute=minute),
+        tzinfo=DEALERSHIP_TIMEZONE,
+    )
+    shown_time = chosen.strftime("%d.%m.%Y %H:%M")
+    await callback.answer()
+    await callback.message.edit_text(
+        f"{t(language, 'appointment_confirm_time', time=shown_time)}\n\n"
+        f"{t(language, 'appointment_timezone')}",
+        reply_markup=appointment_confirmation_keyboard(language),
+    )
+
+
+@router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data == "viewing:choose-minute"
+)
+async def appointment_return_to_minutes(
+    callback: CallbackQuery, state: FSMContext, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    data = await state.get_data()
+    selected_date = data.get("appointment_date")
+    hour = data.get("appointment_hour")
+    if selected_date is None or hour is None:
+        await callback.answer(t(language, "appointment_invalid_date"), show_alert=True)
+        return
+    await callback.answer()
+    await callback.message.edit_text(
+        f"{t(language, 'appointment_change_minutes', hour=f'{hour:02d}')}\n"
+        f"{t(language, 'appointment_timezone')}",
+        reply_markup=appointment_minute_keyboard(language),
+    )
+
+
+@router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data == "viewing:confirm"
+)
+async def appointment_confirm_time(
+    callback: CallbackQuery, state: FSMContext, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    data = await state.get_data()
+    selected_date = data.get("appointment_date")
+    hour = data.get("appointment_hour")
+    minute = data.get("appointment_minute")
+    today = dealership_today()
+    if (
+        not selected_date
+        or hour is None
+        or minute is None
+        or not today
+        <= date.fromisoformat(selected_date)
+        <= today + timedelta(days=MAX_ADVANCE_DAYS)
+    ):
+        language = await get_user_language(session_factory, callback.from_user.id)
+        await callback.answer(
+            t(language, "appointment_invalid_date"), show_alert=True
+        )
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    chosen = datetime.combine(
+        date.fromisoformat(selected_date),
+        datetime.min.time().replace(hour=hour, minute=minute),
+        tzinfo=DEALERSHIP_TIMEZONE,
+    )
+    preferred_time = (
+        f"{chosen.strftime('%d.%m.%Y %H:%M')} (Europe/Warsaw)"
+    )
     await state.update_data(preferred_time=preferred_time)
     await state.set_state(ViewingRequestFlow.message)
-    data = await state.get_data()
-    await message.answer(
+    await callback.answer()
+    await callback.message.edit_text(
         t(language, "appointment_message_prompt"),
         reply_markup=back_keyboard(language, f"car:{data.get('car_id')}"),
     )
+
+
+@router.callback_query(
+    ViewingRequestFlow.preferred_time, F.data == "viewing:cancel"
+)
+async def appointment_cancel(
+    callback: CallbackQuery, state: FSMContext, session_factory
+) -> None:
+    if not callback.from_user or not callback.message:
+        await callback.answer()
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    data = await state.get_data()
+    await state.clear()
+    await callback.answer()
+    await callback.message.edit_text(
+        t(language, "appointment_cancelled"),
+        reply_markup=back_keyboard(
+            language, f"car:{data['car_id']}"
+        ),
+    )
+
+
+@router.callback_query(F.data == "viewing:noop")
+async def appointment_ignore_calendar_button(callback: CallbackQuery) -> None:
+    await callback.answer()
 
 
 @router.message(ViewingRequestFlow.message)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from decimal import Decimal
 from html import escape
 from urllib.parse import quote
@@ -14,12 +15,26 @@ from automotive_bot.i18n import t
 from automotive_bot.models import Administrator, User
 
 logger = logging.getLogger(__name__)
+_USER_LANGUAGE_CACHE: dict[int, tuple[str, float]] = {}
+_USER_LANGUAGE_CACHE_TTL = 300
+
+
+def remember_user_language(telegram_id: int, language: str) -> None:
+    _USER_LANGUAGE_CACHE[telegram_id] = (
+        language,
+        time.monotonic() + _USER_LANGUAGE_CACHE_TTL,
+    )
 
 
 async def get_user_language(session_factory, telegram_id: int) -> str:
+    cached = _USER_LANGUAGE_CACHE.get(telegram_id)
+    if cached and cached[1] > time.monotonic():
+        return cached[0]
     async with session_factory() as session:
         user = await session.get(User, telegram_id)
-        return user.language if user else "ru"
+        language = user.language if user else "ru"
+    remember_user_language(telegram_id, language)
+    return language
 
 
 async def save_telegram_user(session_factory, telegram_user: TelegramUser) -> User:
@@ -84,8 +99,8 @@ def money_text(value: Decimal | float | int, currency: str) -> str:
         .rstrip("0")
         .rstrip(",")
     )
-    display_currency = "zł" if currency.strip().upper() == "PLN" else currency
-    return f"{formatted} {escape(display_currency)}"
+    # Vehicle prices are entered and displayed in PLN regardless of interface language.
+    return f"{formatted} {escape('zł')}"
 
 
 def display_name(user: User | None, telegram_id: int) -> str:

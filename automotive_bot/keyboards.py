@@ -78,6 +78,38 @@ def fuel_keyboard(
     )
 
 
+def fuel_selection_keyboard(
+    language: str, callback_prefix: str, selected: tuple[str, ...] | list[str]
+) -> InlineKeyboardMarkup:
+    options = [
+        ("petrol", "fuel_petrol"),
+        ("diesel", "fuel_diesel"),
+        ("electric", "fuel_electric"),
+        ("hybrid", "fuel_hybrid"),
+        ("lpg", "fuel_lpg"),
+    ]
+    selected_set = set(selected)
+    rows = []
+    row = []
+    for fuel, label in options:
+        marker = "☑" if fuel in selected_set else "▫️"
+        row.append(
+            InlineKeyboardButton(
+                text=f"{marker} {t(language, label)}",
+                callback_data=f"{callback_prefix}:toggle:{fuel}",
+            )
+        )
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append(
+        [InlineKeyboardButton(text=t(language, "btn_done"), callback_data=f"{callback_prefix}:done")]
+    )
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 def transmission_keyboard(language: str, callback_prefix: str) -> InlineKeyboardMarkup:
     options = [
         ("any", "trans_any"),
