@@ -11,8 +11,8 @@ A multilingual Telegram bot for browsing vehicle listings, managing favorites an
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `BOT_TOKEN` (Replit Secret)
-- Optional env: `DATABASE_URL`, `ADMIN_IDS`, `CURRENCY`
+- Required env: `BOT_TOKEN` (Railway variable for the deployed bot)
+- Optional env: `DATABASE_URL`, `ADMIN_IDS`, `GOOGLE_TRANSLATE_API_KEY`
 
 ## Stack
 
@@ -35,6 +35,7 @@ A multilingual Telegram bot for browsing vehicle listings, managing favorites an
 - Listing contact buttons open the Telegram account that created the listing; use its username when available and fall back to its Telegram user ID.
 - SQLite is the no-configuration development default; PostgreSQL works through `DATABASE_URL`.
 - First-admin access is explicitly bootstrapped by the project owner or an existing administrator, never assigned to an arbitrary first user.
+- Vehicle descriptions are translated to the customer's selected language with Google Cloud Translation when `GOOGLE_TRANSLATE_API_KEY` is configured. The deployed Railway service needs this variable; keep its value out of source control.
 
 ## Product
 

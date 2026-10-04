@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 import unittest
+from types import SimpleNamespace
 
 from automotive_bot.appointment_calendar import (
     DEALERSHIP_TIMEZONE,
@@ -21,6 +22,7 @@ from automotive_bot.i18n import (
 from automotive_bot.keyboards import fuel_selection_keyboard
 from automotive_bot.models import Car
 from automotive_bot.services import money_text
+from automotive_bot.handlers.customer import _car_caption
 from sqlalchemy import select
 
 
@@ -92,6 +94,40 @@ class PriceDisplayTests(unittest.TestCase):
     def test_prices_are_always_displayed_in_polish_zloty(self) -> None:
         self.assertEqual(money_text(Decimal("125000.50"), "EUR"), "125 000,5 zł")
         self.assertNotIn("€", money_text(Decimal("125000.50"), "EUR"))
+
+
+class CarCaptionTranslationTests(unittest.TestCase):
+    def test_translated_description_is_used_and_fallback_is_visible(self) -> None:
+        car = SimpleNamespace(
+            make_model="Test car",
+            status="available",
+            price=Decimal("12500"),
+            year=2020,
+            mileage=50000,
+            fuel_type="petrol",
+            transmission="automatic",
+            description="Исходное описание",
+        )
+
+        caption = _car_caption(
+            car,
+            "de",
+            "PLN",
+            description_text="Übersetzte Beschreibung",
+            translation_available=True,
+        )
+        self.assertIn("Übersetzte Beschreibung", caption)
+        self.assertNotIn("Исходное описание", caption)
+
+        fallback_caption = _car_caption(
+            car,
+            "de",
+            "PLN",
+            description_text=car.description,
+            translation_available=False,
+        )
+        self.assertIn("Исходное описание", fallback_caption)
+        self.assertIn("Übersetzung vorübergehend nicht verfügbar", fallback_caption)
 
 
 class AppointmentTimeTests(unittest.TestCase):

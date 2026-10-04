@@ -62,6 +62,7 @@ from automotive_bot.services import (
     telegram_user_link,
 )
 from automotive_bot.states import ContactFlow, CustomerSearch, ViewingRequestFlow
+from automotive_bot.translation import translate_description
 
 router = Router(name="customer")
 WELCOME_IMAGE_PATH = (
@@ -323,6 +324,8 @@ def _car_caption(
     currency: str,
     photo_index: int = 0,
     photo_count: int = 0,
+    description_text: str | None = None,
+    translation_available: bool = True,
 ) -> str:
     fuel = fuel_label(language, car.fuel_type)
     transmission = t(
@@ -345,7 +348,9 @@ def _car_caption(
         f"{year_line} · {mileage_line}\n{fuel_line} · {transmission_line}\n\n"
         f"{description_label}\n"
     )
-    description = (car.description or "—").strip()
+    description = (description_text if description_text is not None else car.description or "—").strip()
+    if not translation_available:
+        description = f"{description}\n\n{t(language, 'description_translation_unavailable')}"
     description = _truncate_utf16(
         description, max(0, 970 - _utf16_length(fixed_text))
     )
@@ -384,9 +389,18 @@ async def _show_car(
         )
         photos = [photo.file_id for photo in car.photos]
         status = car.status
-        caption = _car_caption(
-            car, language, settings.currency, photo_count=len(photos)
-        )
+        original_description = car.description or ""
+    translated_description, translation_available = await translate_description(
+        original_description, language, settings.google_translate_api_key
+    )
+    caption = _car_caption(
+        car,
+        language,
+        settings.currency,
+        photo_count=len(photos),
+        description_text=translated_description,
+        translation_available=translation_available,
+    )
     contact_url = await primary_administrator_url(session_factory)
     markup = car_actions(
         language,
@@ -786,13 +800,19 @@ async def change_car_photo(
             Favorite, (callback.from_user.id, car_id)
         ) is not None
         status = car.status
-        caption = _car_caption(
-            car,
-            language,
-            settings.currency,
-            photo_index=photo_index,
-            photo_count=len(photos),
-        )
+        original_description = car.description or ""
+    translated_description, translation_available = await translate_description(
+        original_description, language, settings.google_translate_api_key
+    )
+    caption = _car_caption(
+        car,
+        language,
+        settings.currency,
+        photo_index=photo_index,
+        photo_count=len(photos),
+        description_text=translated_description,
+        translation_available=translation_available,
+    )
     contact_url = await primary_administrator_url(session_factory)
     markup = car_actions(
         language,

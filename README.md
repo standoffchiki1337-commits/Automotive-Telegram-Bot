@@ -18,7 +18,8 @@ An aiogram 3 bot for an automotive business. Customers can find vehicles, save f
 
 1. Set the Telegram token as a Replit Secret named `BOT_TOKEN`. Do not place the real token in source code.
 2. Add the Telegram numeric ID of the first administrator through `ADMIN_IDS`, or run the bootstrap command below.
-3. Start the **Automotive Telegram Bot** workflow.
+3. To translate vehicle descriptions, enable Cloud Translation in Google Cloud and add `GOOGLE_TRANSLATE_API_KEY` to the Railway service variables. Restrict the key to the Cloud Translation API. The key is optional; without it, descriptions remain in their original language and the bot says translation is unavailable.
+4. Start the **Automotive Telegram Bot** workflow.
 
 If an administrator is added via `ADMIN_IDS`, the bot creates that administrator record on startup. Remove that ID from `ADMIN_IDS` after setup if you want subsequent removal from the in-bot administrator menu to remain permanent.
 
@@ -27,7 +28,7 @@ If an administrator is added via `ADMIN_IDS`, the bot creates that administrator
 `railpack.json` configures a single Python service from the repository root and starts the Telegram bot with `uv`. In Railway, use the repository root (`/`) as the service's root directory; do not deploy the individual JavaScript workspace packages as bot services.
 
 1. Create or select one Railway service connected to this repository, using the repository root as its root directory.
-2. Add `BOT_TOKEN` in that service's Variables. Optionally add `ADMIN_IDS`.
+2. Add `BOT_TOKEN` in that service's Variables. Optionally add `ADMIN_IDS` and `GOOGLE_TRANSLATE_API_KEY`.
 3. Attach a Railway Volume to the service at `/app/data` to keep the default SQLite database across redeploys. Leave `DATABASE_URL` unset to use SQLite.
 4. Keep one running replica: Telegram long polling should not run in multiple instances with the same bot token.
 
@@ -58,6 +59,7 @@ Replace the example with the administrator's numeric Telegram user ID. The bot m
 | `BOT_TOKEN` | Yes | Telegram bot token. Store as a Replit Secret or local environment variable. |
 | `DATABASE_URL` | No | Defaults to `sqlite+aiosqlite:///./data/automotive.db`; accepts PostgreSQL URLs as well. |
 | `ADMIN_IDS` | No | Comma-separated initial administrator Telegram IDs, for example `123456789,987654321`. |
+| `GOOGLE_TRANSLATE_API_KEY` | No | Google Cloud Translation API key. Descriptions are translated to each customer's selected language; without a key, the original is shown with a notice. |
 
 SQLite data is stored in `data/automotive.db`. For hosted PostgreSQL, set `DATABASE_URL` to the managed database URL. The database schema is initialized when the bot starts.
 Prices are displayed in Polish złoty (`zł`).

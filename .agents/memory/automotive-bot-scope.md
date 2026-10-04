@@ -27,6 +27,12 @@ For listing contact, open the primary bot administrator's Telegram account. Link
 
 **How to apply:** Select the earliest active administrator as the primary contact; if that administrator is removed, use the next active administrator.
 
+Translate vehicle descriptions into the customer's selected bot language using Google Cloud Translation, while preserving the stored original. Configure the Google API key on Railway, not in source code.
+
+**Why:** The owner requested that Russian or Ukrainian listings display in the customer's chosen language, including German, and selected Google Cloud Translation for the integration.
+
+**How to apply:** Keep source descriptions unchanged, translate when rendering car cards (including photo navigation), cache successful results, and show the original with a clear notice if translation is unavailable.
+
 Main-menu buttons must work from any active conversation flow; customers and admins should not need `/start` just to navigate away from a prompt.
 
 **Why:** The owner reported that pressing buttons during bot flows could leave users needing to restart the bot.
