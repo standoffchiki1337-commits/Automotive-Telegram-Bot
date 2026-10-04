@@ -44,5 +44,5 @@ def load_settings() -> Settings:
         bot_token=token,
         database_url=database_url,
         admin_ids=tuple(dict.fromkeys(admin_ids)),
-        currency=os.getenv("CURRENCY", "EUR").strip() or "EUR",
+        currency="PLN",
     )

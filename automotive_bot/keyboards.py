@@ -18,11 +18,12 @@ def language_keyboard() -> InlineKeyboardMarkup:
         "en": "English",
         "de": "Deutsch",
     }
+    buttons = [
+        InlineKeyboardButton(text=labels[code], callback_data=f"language:{code}")
+        for code in LANGUAGES
+    ]
     return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text=labels[code], callback_data=f"language:{code}")]
-            for code in LANGUAGES
-        ]
+        inline_keyboard=[buttons[index : index + 2] for index in range(0, len(buttons), 2)]
     )
 
 
@@ -95,11 +96,18 @@ def car_actions(
     language: str,
     car_id: int,
     is_favorite: bool,
-    seller_url: str,
+    contact_url: str | None,
     photo_count: int = 1,
     photo_index: int = 0,
 ) -> InlineKeyboardMarkup:
     favorite_key = "btn_unfavorite" if is_favorite else "btn_favorite"
+    contact_button = (
+        InlineKeyboardButton(text=t(language, "btn_contact"), url=contact_url)
+        if contact_url
+        else InlineKeyboardButton(
+            text=t(language, "btn_contact"), callback_data=f"contact:car:{car_id}"
+        )
+    )
     rows = [
         [
             InlineKeyboardButton(
@@ -130,7 +138,7 @@ def car_actions(
                     text=t(language, "btn_appointment"),
                     callback_data=f"appointment:{car_id}",
                 ),
-                InlineKeyboardButton(text=t(language, "btn_contact"), url=seller_url),
+                contact_button,
             ],
             [
                 InlineKeyboardButton(

@@ -27,7 +27,7 @@ If an administrator is added via `ADMIN_IDS`, the bot creates that administrator
 `railpack.json` configures a single Python service from the repository root and starts the Telegram bot with `uv`. In Railway, use the repository root (`/`) as the service's root directory; do not deploy the individual JavaScript workspace packages as bot services.
 
 1. Create or select one Railway service connected to this repository, using the repository root as its root directory.
-2. Add `BOT_TOKEN` in that service's Variables. Optionally add `ADMIN_IDS` and `CURRENCY`.
+2. Add `BOT_TOKEN` in that service's Variables. Optionally add `ADMIN_IDS`.
 3. Attach a Railway Volume to the service at `/app/data` to keep the default SQLite database across redeploys. Leave `DATABASE_URL` unset to use SQLite.
 4. Keep one running replica: Telegram long polling should not run in multiple instances with the same bot token.
 
@@ -58,17 +58,19 @@ Replace the example with the administrator's numeric Telegram user ID. The bot m
 | `BOT_TOKEN` | Yes | Telegram bot token. Store as a Replit Secret or local environment variable. |
 | `DATABASE_URL` | No | Defaults to `sqlite+aiosqlite:///./data/automotive.db`; accepts PostgreSQL URLs as well. |
 | `ADMIN_IDS` | No | Comma-separated initial administrator Telegram IDs, for example `123456789,987654321`. |
-| `CURRENCY` | No | Currency code displayed beside vehicle prices; defaults to `EUR`. |
 
 SQLite data is stored in `data/automotive.db`. For hosted PostgreSQL, set `DATABASE_URL` to the managed database URL. The database schema is initialized when the bot starts.
+Prices are displayed in Polish złoty (`zł`).
 
 ## Customer controls
 
-Use `/start` to choose a language and open the menu. Customers can browse available vehicles, filter the catalog, save favorites, request an appointment, review their own requests, or send a message to the business.
+Use `/start` to choose a language before opening the menu. The **Contact seller** button on a vehicle listing opens the primary bot administrator's Telegram account. Customers can browse available vehicles, filter the catalog, save favorites, request an appointment, review their own requests, or send a message to the business.
 
 ## Administrator controls
 
 Open the administrator panel from the menu. Administrator access is stored in the database. The first administrator can be seeded with `ADMIN_IDS` or `automotive_bot.bootstrap_admin`; administrators can then add or remove other administrators from the bot.
+
+The vehicle **Contact seller** button opens the earliest active administrator's Telegram account. If that administrator is removed, the next active administrator becomes the contact.
 
 When adding photos, send up to 10 photos one at a time or as an album and finish with the **Done** button. Photos are referenced by their Telegram file IDs rather than copied into the database.
 

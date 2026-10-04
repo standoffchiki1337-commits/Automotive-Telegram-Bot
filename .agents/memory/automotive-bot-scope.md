@@ -15,8 +15,8 @@ For Railway, use one service built from the repository root to run the Python bo
 
 **How to apply:** Keep Railway build and start configuration targeted at the root Python bot; do not delete existing Railway services without checking their data and volumes.
 
-For listing contact, use the Telegram account that created the listing. Link to its public username when available and fall back to its Telegram user ID when not.
+For listing contact, open the primary bot administrator's Telegram account. Link to its public username when available and fall back to its Telegram user ID when not.
 
-**Why:** This uses existing listing ownership without adding a separate seller-handle setting. The owner has not separately confirmed that the creator is always the intended seller.
+**Why:** The owner explicitly requested listing inquiries go to the bot administrator's account rather than the listing creator.
 
-**How to apply:** Reuse this behavior for listing-level contact unless the owner specifies a different seller identity model.
+**How to apply:** Select the earliest active administrator as the primary contact; if that administrator is removed, use the next active administrator.

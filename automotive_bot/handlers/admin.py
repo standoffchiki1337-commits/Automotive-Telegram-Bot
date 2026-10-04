@@ -222,7 +222,7 @@ async def add_car_year(message: Message, state: FSMContext, session_factory) -> 
 async def add_car_price(message: Message, state: FSMContext, session_factory) -> None:
     language = await get_user_language(session_factory, message.from_user.id)
     try:
-        price = Decimal((message.text or "").strip().replace(",", "."))
+        price = Decimal("".join((message.text or "").split()).replace(",", "."))
         if price <= 0:
             raise InvalidOperation
     except (InvalidOperation, ValueError):

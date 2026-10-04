@@ -27,7 +27,7 @@ async def _add_administrator(telegram_id: int) -> None:
         bot_token="",
         database_url=_database_url(),
         admin_ids=(),
-        currency=os.getenv("CURRENCY", "EUR"),
+        currency="PLN",
     )
     engine, session_factory = create_database(settings)
     try:

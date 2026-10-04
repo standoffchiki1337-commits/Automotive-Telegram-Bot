@@ -39,9 +39,9 @@ from automotive_bot.services import (
     is_administrator,
     money_text,
     notify_administrators,
+    primary_administrator_url,
     save_telegram_user,
     telegram_user_link,
-    telegram_user_url,
 )
 from automotive_bot.states import ContactFlow, CustomerSearch, ViewingRequestFlow
 
@@ -332,18 +332,15 @@ async def _show_car(
         )
         photos = [photo.file_id for photo in car.photos]
         status = car.status
-        seller = await session.get(User, car.created_by)
-        seller_url = telegram_user_url(
-            car.created_by, seller.username if seller else None
-        )
         caption = _car_caption(
             car, language, settings.currency, photo_count=len(photos)
         )
+    contact_url = await primary_administrator_url(session_factory)
     markup = car_actions(
         language,
         car_id,
         is_favorite,
-        seller_url,
+        contact_url,
         photo_count=len(photos),
     )
     if status != "available":
@@ -371,17 +368,10 @@ async def start_command(message: Message, session_factory, state: FSMContext) ->
     if not message.from_user:
         return
     await state.clear()
-    async with session_factory() as session:
-        existing = await session.get(User, message.from_user.id)
     await save_telegram_user(session_factory, message.from_user)
-    if existing is None:
-        await message.answer(
-            t("ru", "language_prompt"), reply_markup=language_keyboard()
-        )
-        return
-    language, admin = await _localized_user(session_factory, message.from_user.id)
+    language = await get_user_language(session_factory, message.from_user.id)
     await message.answer(
-        t(language, "welcome"), reply_markup=home_keyboard(language, admin)
+        t(language, "language_prompt"), reply_markup=language_keyboard()
     )
 
 
@@ -612,7 +602,7 @@ async def search_receive_year(message: Message, state: FSMContext, session_facto
 async def search_receive_price(message: Message, state: FSMContext, session_factory, bot: Bot, settings: Settings) -> None:
     language = await get_user_language(session_factory, message.from_user.id)
     try:
-        price = Decimal((message.text or "").strip().replace(",", "."))
+        price = Decimal("".join((message.text or "").split()).replace(",", "."))
         if price < 0:
             raise InvalidOperation
     except (InvalidOperation, ValueError):
@@ -669,10 +659,6 @@ async def change_car_photo(
         is_favorite = await session.get(
             Favorite, (callback.from_user.id, car_id)
         ) is not None
-        seller = await session.get(User, car.created_by)
-        seller_url = telegram_user_url(
-            car.created_by, seller.username if seller else None
-        )
         status = car.status
         caption = _car_caption(
             car,
@@ -681,11 +667,12 @@ async def change_car_photo(
             photo_index=photo_index,
             photo_count=len(photos),
         )
+    contact_url = await primary_administrator_url(session_factory)
     markup = car_actions(
         language,
         car_id,
         is_favorite,
-        seller_url,
+        contact_url,
         photo_count=len(photos),
         photo_index=photo_index,
     )
@@ -789,17 +776,14 @@ async def toggle_favorite(
             session.add(Favorite(user_id=user_id, car_id=car_id))
             response = t(language, "favorite_added")
         photos_count = len(car.photos)
-        seller = await session.get(User, car.created_by)
-        seller_url = telegram_user_url(
-            car.created_by, seller.username if seller else None
-        )
         status = car.status
         await session.commit()
+    contact_url = await primary_administrator_url(session_factory)
     markup = car_actions(
         language,
         car_id,
         not bool(favorite),
-        seller_url,
+        contact_url,
         photo_count=photos_count,
         photo_index=min(photo_index, max(photos_count - 1, 0)),
     )

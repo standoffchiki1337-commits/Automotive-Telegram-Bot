@@ -78,8 +78,14 @@ async def notify_administrators(bot: Bot, session_factory, text: str) -> int:
 
 def money_text(value: Decimal | float | int, currency: str) -> str:
     amount = Decimal(str(value))
-    formatted = f"{amount:,.2f}".replace(",", " ").rstrip("0").rstrip(".")
-    return f"{formatted} {escape(currency)}"
+    formatted = (
+        f"{amount:,.2f}".replace(",", " ")
+        .replace(".", ",")
+        .rstrip("0")
+        .rstrip(",")
+    )
+    display_currency = "zł" if currency.strip().upper() == "PLN" else currency
+    return f"{formatted} {escape(display_currency)}"
 
 
 def display_name(user: User | None, telegram_id: int) -> str:
@@ -94,6 +100,21 @@ def telegram_user_url(telegram_id: int, username: str | None) -> str:
     if username:
         return f"https://t.me/{quote(username, safe='')}"
     return f"tg://user?id={telegram_id}"
+
+
+async def primary_administrator_url(session_factory) -> str | None:
+    async with session_factory() as session:
+        telegram_id = await session.scalar(
+            select(Administrator.telegram_id)
+            .order_by(Administrator.created_at, Administrator.telegram_id)
+            .limit(1)
+        )
+        if telegram_id is None:
+            return None
+        administrator = await session.get(User, telegram_id)
+        return telegram_user_url(
+            telegram_id, administrator.username if administrator else None
+        )
 
 
 def telegram_user_link(
