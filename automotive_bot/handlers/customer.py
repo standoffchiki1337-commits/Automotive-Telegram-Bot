@@ -2,12 +2,14 @@ from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
 from html import escape
+from pathlib import Path
 
 from aiogram import Bot, F, Router
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
     CallbackQuery,
+    FSInputFile,
     InputMediaPhoto,
     Message,
 )
@@ -47,6 +49,12 @@ from automotive_bot.services import (
 from automotive_bot.states import ContactFlow, CustomerSearch, ViewingRequestFlow
 
 router = Router(name="customer")
+WELCOME_IMAGE_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "attached_assets"
+    / "generated_images"
+    / "autokomis_avatar.png"
+)
 
 
 def _all_button_texts(key: str) -> set[str]:
@@ -293,35 +301,34 @@ def _car_caption(
         language, TRANSMISSION_KEYS.get(car.transmission, "trans_other")
     )
     mileage = f"{car.mileage:,} {t(language, 'unit_km')}"
-    year_line = f"{t(language, 'label_year')}: {car.year}   ·   "
-    mileage_line = f"{t(language, 'label_mileage')}: {mileage}"
-    fuel_line = f"{t(language, 'label_fuel')}: {fuel}"
-    transmission_line = f"{t(language, 'label_transmission')}: {transmission}"
+    year_line = f"📅 {t(language, 'label_year')}: {car.year}"
+    mileage_line = f"🛞 {t(language, 'label_mileage')}: {mileage}"
+    fuel_line = f"⛽ {t(language, 'label_fuel')}: {fuel}"
+    transmission_line = f"⚙️ {t(language, 'label_transmission')}: {transmission}"
     description_label = t(language, "label_description")
     price = money_text(car.price, currency)
     status = status_badge(language, car.status)
     photo_counter = (
-        f"📷 {photo_index + 1}/{photo_count}\n" if photo_count > 1 else ""
+        f"📷 {photo_index + 1}/{photo_count}\n\n" if photo_count > 1 else ""
     )
     fixed_text = (
-        f"{car.make_model}\n{status}\n{photo_counter}━━━━━━━━━━━━━━━━━━\n{price}\n\n"
-        f"{t(language, 'specifications')}\n{year_line}{mileage_line}\n"
-        f"{fuel_line}\n{transmission_line}\n\n{description_label}\n"
+        f"{car.make_model}\n{status}\n\n{photo_counter}"
+        f"{price}\n\n{t(language, 'specifications')}\n"
+        f"{year_line} · {mileage_line}\n{fuel_line} · {transmission_line}\n\n"
+        f"{description_label}\n"
     )
     description = (car.description or "—").strip()
     description = _truncate_utf16(
         description, max(0, 970 - _utf16_length(fixed_text))
     )
     return (
-        f"<b>{escape(car.make_model)}</b>\n"
-        f"{status}\n"
+        f"🚘 <b>{escape(car.make_model)}</b>\n"
+        f"{status}\n\n"
         f"{photo_counter}"
-        "━━━━━━━━━━━━━━━━━━\n"
-        f"<b>{price}</b>\n\n"
+        f"💰 <b>{price}</b>\n\n"
         f"<b>{t(language, 'specifications')}</b>\n"
-        f"{year_line}{mileage_line}\n"
-        f"{fuel_line}\n"
-        f"{transmission_line}\n\n"
+        f"{year_line} · {mileage_line}\n"
+        f"{fuel_line} · {transmission_line}\n\n"
         f"<b>{description_label}</b>\n{escape(description)}"
     )
 
@@ -475,8 +482,11 @@ async def choose_language(callback: CallbackQuery, session_factory) -> None:
     admin = await is_administrator(session_factory, callback.from_user.id)
     await callback.answer(t(language, "language_set"))
     if callback.message:
-        await callback.message.answer(
-            t(language, "welcome"), reply_markup=home_keyboard(language, admin)
+        await callback.message.answer_photo(
+            photo=FSInputFile(WELCOME_IMAGE_PATH),
+            caption=t(language, "welcome"),
+            reply_markup=home_keyboard(language, admin),
+            parse_mode="HTML",
         )
 
 
@@ -488,8 +498,11 @@ async def home_menu(callback: CallbackQuery, session_factory, state: FSMContext)
         return
     language, admin = await _localized_user(session_factory, callback.from_user.id)
     await callback.answer()
-    await callback.message.answer(
-        t(language, "welcome"), reply_markup=home_keyboard(language, admin)
+    await callback.message.answer_photo(
+        photo=FSInputFile(WELCOME_IMAGE_PATH),
+        caption=t(language, "welcome"),
+        reply_markup=home_keyboard(language, admin),
+        parse_mode="HTML",
     )
 
 

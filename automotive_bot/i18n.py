@@ -6,29 +6,31 @@ TEXTS: dict[str, dict[str, str]] = {
     "ru": {
         "language_prompt": "Выберите язык / Wybierz język / Оберіть мову / Choose a language / Sprache wählen:",
         "language_set": "Язык сохранён.",
-        "welcome": "🚘 <b>Каталог автомобилей</b>\nВыберите нужный раздел:",
-        "help": (
-            "<b>Как пользоваться ботом</b>\n\n"
-            "<b>Все автомобили</b> — открыть каталог доступных машин.\n"
-            "<b>Поиск и фильтры</b> — подобрать автомобиль по марке или модели, "
-            "топливу, коробке передач, году и максимальной цене.\n"
-            "<b>Карточка автомобиля</b> — листайте фото, добавляйте машину в избранное, "
-            "связывайтесь с администратором или отправляйте заявку на просмотр.\n"
-            "<b>Избранное</b> — сохранённые объявления.\n"
-            "<b>Мои заявки</b> — ваши заявки на просмотр и их статусы.\n"
-            "<b>Написать дилеру</b> — отправить сообщение администраторам.\n"
-            "<b>Профиль клиента</b> — ваши данные и активность.\n"
-            "<b>Язык</b> — сменить язык меню.\n\n"
-            "Кнопки меню работают в любой момент. Отправьте /cancel, чтобы отменить "
-            "текущий шаг. Администраторам доступна панель управления автомобилями и заявками."
+        "welcome": (
+            "<b>AutoKomis</b>\n"
+            "Автомобили в одном каталоге.\n"
+            "Смотрите фотографии, сравнивайте характеристики и записывайтесь на просмотр.\n\n"
+            "<b>С чего начнём?</b>"
         ),
-        "btn_cars": "Все автомобили",
-        "btn_search": "Поиск и фильтры",
+        "help": (
+            "<b>AutoKomis · ваш каталог автомобилей</b>\n\n"
+            "🚘 <b>Каталог</b> — объявления с фотографиями и характеристиками.\n"
+            "🔎 <b>Подбор</b> — поиск по марке, модели, топливу, коробке передач, "
+            "году выпуска и цене.\n"
+            "♡ <b>Избранное</b> — сохраните интересные автомобили, чтобы вернуться к ним позже.\n"
+            "📅 <b>Запись на просмотр</b> — выберите удобное время прямо в карточке автомобиля.\n"
+            "💬 <b>Связь с нами</b> — задайте вопрос об объявлении или напишите дилеру.\n"
+            "👤 <b>Мой профиль</b> — язык, избранное и история заявок.\n\n"
+            "Листайте фотографии кнопками в карточке. Кнопки главного меню работают "
+            "во время любого шага. Для отмены текущего действия отправьте /cancel."
+        ),
+        "btn_cars": "🚘 Каталог",
+        "btn_search": "🔎 Подбор авто",
         "btn_favorites": "Избранное",
         "btn_requests": "Мои заявки",
-        "btn_contact": "Связаться с продавцом",
-        "btn_business_message": "Написать дилеру",
-        "btn_profile": "Профиль клиента",
+        "btn_contact": "💬 Написать продавцу",
+        "btn_business_message": "💬 Написать нам",
+        "btn_profile": "Мой профиль",
         "btn_admin": "Панель администратора",
         "btn_admin_menu": "Меню администратора",
         "btn_main_menu": "Главное меню",
@@ -54,14 +56,14 @@ TEXTS: dict[str, dict[str, str]] = {
         "btn_appointment": "Записаться на просмотр",
         "btn_confirm_delete": "Да, удалить",
         "btn_keep": "Оставить",
-        "cars_empty": "Сейчас нет доступных автомобилей.",
-        "search_term_prompt": "Введите марку, модель или ключевые слова. Отправьте «-», чтобы пропустить.",
+        "cars_empty": "В каталоге пока нет доступных автомобилей.\n\nЗагляните позже или напишите нам — поможем с подбором.",
+        "search_term_prompt": "Что ищем? Укажите марку, модель или ключевое слово. Чтобы пропустить шаг, отправьте «-».",
         "search_fuel_prompt": "Выберите тип топлива:",
         "search_transmission_prompt": "Выберите коробку передач:",
-        "search_year_prompt": "Минимальный год выпуска (например, 2018) или 0, чтобы пропустить:",
-        "search_price_prompt": "Максимальная цена в польских злотых (zł) или 0, чтобы пропустить:",
-        "search_results": "Результаты поиска:",
-        "search_none": "По заданным фильтрам автомобили не найдены.",
+        "search_year_prompt": "Укажите минимальный год выпуска (например, 2018) или отправьте 0, чтобы пропустить:",
+        "search_price_prompt": "Укажите максимальную цену в злотых (zł) или отправьте 0, чтобы пропустить:",
+        "search_results": "Подходящие автомобили",
+        "search_none": "По этим параметрам автомобилей не нашлось.\n\nИзмените фильтры и попробуйте ещё раз.",
         "fuel_any": "Любое топливо",
         "fuel_petrol": "Бензин",
         "fuel_diesel": "Дизель",
@@ -80,7 +82,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "label_description": "Описание",
         "label_status": "Статус",
         "label_seller": "Продавец",
-        "specifications": "Характеристики",
+        "specifications": "ОБ АВТОМОБИЛЕ",
         "status_available": "В продаже",
         "status_reserved": "Зарезервирован",
         "status_sold": "Продан",
@@ -88,7 +90,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "status_confirmed": "Подтверждена",
         "status_completed": "Завершена",
         "status_cancelled": "Отменена",
-        "car_missing": "Этот автомобиль больше недоступен.",
+        "car_missing": "Это объявление больше недоступно. Вернитесь в каталог, чтобы посмотреть другие автомобили.",
         "profile_title": "Профиль клиента",
         "profile_name": "Имя",
         "profile_username": "Telegram",
@@ -101,17 +103,17 @@ TEXTS: dict[str, dict[str, str]] = {
         "open_telegram_profile": "Открыть Telegram",
         "favorite_added": "Автомобиль добавлен в избранное.",
         "favorite_removed": "Автомобиль удалён из избранного.",
-        "favorites_empty": "В избранном пока нет автомобилей.",
-        "appointment_time_prompt": "Укажите удобную дату и время для просмотра автомобиля.",
-        "appointment_message_prompt": "Добавьте комментарий или отправьте «-», чтобы пропустить.",
-        "appointment_created": "Заявка отправлена. Администратор свяжется с вами.",
+        "favorites_empty": "Здесь появятся автомобили, которые вы добавите в избранное.\n\nОткройте каталог и нажмите «В избранное» в понравившейся карточке.",
+        "appointment_time_prompt": "Когда вам удобно приехать на просмотр? Укажите дату и время — например, «суббота после 14:00».",
+        "appointment_message_prompt": "Оставьте комментарий, если хотите. Например, задайте вопрос об автомобиле. Или отправьте «-», чтобы пропустить.",
+        "appointment_created": "Спасибо! Заявка на просмотр отправлена. Мы свяжемся с вами, чтобы подтвердить время.",
         "requests_empty": "У вас пока нет заявок на просмотр.",
-        "contact_prompt": "Напишите сообщение администраторам автосалона.",
-        "contact_seller_prompt": "Задайте вопрос об автомобиле «{car}». Сообщение получит администратор бота.",
+        "contact_prompt": "Напишите, чем можем помочь. Ваше сообщение получит команда AutoKomis.",
+        "contact_seller_prompt": "Ваш вопрос об автомобиле <b>«{car}»</b> получит команда AutoKomis. Напишите его одним сообщением.",
         "message_too_long": "Сообщение слишком длинное. Сократите его и отправьте ещё раз.",
-        "contact_sent": "Сообщение отправлено администраторам.",
+        "contact_sent": "Сообщение отправлено команде AutoKomis. Спасибо!",
         "no_admin": "Администраторы пока не настроены. Попробуйте позже.",
-        "admin_menu": "<b>ПАНЕЛЬ АДМИНИСТРАТОРА</b>\nУправление автопарком и клиентскими заявками",
+        "admin_menu": "<b>AutoKomis · панель администратора</b>\n\nОбъявления, заявки на просмотр и доступ администраторов.",
         "admin_denied": "Доступ только для администраторов.",
         "admin_car_prompt": "Введите марку и модель автомобиля:",
         "admin_year_prompt": "Введите год выпуска:",
@@ -120,7 +122,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "admin_fuel_prompt": "Выберите тип топлива:",
         "admin_transmission_prompt": "Выберите коробку передач:",
         "admin_description_prompt": "Введите описание автомобиля:",
-        "admin_photos_prompt": "Отправьте фото по одному или альбомом, затем нажмите «Готово». Можно пропустить.",
+        "admin_photos_prompt": "Добавьте до 10 фотографий. Первым отправьте лучший общий вид автомобиля — он станет обложкой объявления. Затем можно добавить салон, приборную панель и детали. Отправляйте по одному или альбомом, после загрузки нажмите «Готово». Шаг можно пропустить.",
         "admin_photo_added": "Фото добавлено ({count}). Отправьте ещё или нажмите «Готово».",
         "admin_photo_limit": "Для объявления можно сохранить не более 10 фото.",
         "admin_car_created": "Объявление добавлено.",
@@ -152,7 +154,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "request_details": "Заявка #{request_id}\nАвтомобиль: {car}\nКлиент: {customer} · {customer_link}\nTelegram ID: {user_id}\nУдобное время: {time}\nКомментарий: {message}\nСтатус: {status}",
         "photos_saved": "Фотографии сохранены.",
         "photos_empty": "Фото не добавлены.",
-        "car_list_line": "{name} — {price} · {year}",
+        "car_list_line": "{name} · {year} · {price}",
         "unit_km": "км",
         "field_make_model": "Марка и модель",
         "field_year": "Год",
@@ -165,7 +167,12 @@ TEXTS: dict[str, dict[str, str]] = {
     "pl": {
         "language_prompt": "Wybierz język:",
         "language_set": "Język został zapisany.",
-        "welcome": "🚘 <b>Katalog samochodów</b>\nWybierz sekcję:",
+        "welcome": (
+            "<b>AutoKomis</b>\n"
+            "Samochody w jednym katalogu.\n"
+            "Oglądaj zdjęcia, porównuj dane i umów się na oględziny.\n\n"
+            "<b>Od czego zaczynamy?</b>"
+        ),
         "help": (
             "<b>Jak korzystać z bota</b>\n\n"
             "<b>Wszystkie samochody</b> — otwórz katalog dostępnych aut.\n"
@@ -324,7 +331,12 @@ TEXTS: dict[str, dict[str, str]] = {
     "uk": {
         "language_prompt": "Оберіть мову:",
         "language_set": "Мову збережено.",
-        "welcome": "🚘 <b>Каталог автомобілів</b>\nОберіть потрібний розділ:",
+        "welcome": (
+            "<b>AutoKomis</b>\n"
+            "Автомобілі в одному каталозі.\n"
+            "Переглядайте фото, порівнюйте характеристики та записуйтеся на огляд.\n\n"
+            "<b>З чого почнемо?</b>"
+        ),
         "help": (
             "<b>Як користуватися ботом</b>\n\n"
             "<b>Усі автомобілі</b> — відкрити каталог доступних авто.\n"
@@ -483,7 +495,12 @@ TEXTS: dict[str, dict[str, str]] = {
     "en": {
         "language_prompt": "Choose a language / Wybierz język / Выберите язык / Оберіть мову / Sprache wählen:",
         "language_set": "Language saved.",
-        "welcome": "🚘 <b>Vehicle catalog</b>\nChoose a section:",
+        "welcome": (
+            "<b>AutoKomis</b>\n"
+            "Explore our car catalogue.\n"
+            "Browse photos, compare specs, and book a viewing.\n\n"
+            "<b>Where would you like to start?</b>"
+        ),
         "help": (
             "<b>How to use this bot</b>\n\n"
             "<b>All vehicles</b> — browse available cars.\n"
@@ -642,7 +659,12 @@ TEXTS: dict[str, dict[str, str]] = {
     "de": {
         "language_prompt": "Sprache wählen / Wybierz język / Выберите язык / Оберіть мову:",
         "language_set": "Sprache gespeichert.",
-        "welcome": "🚘 <b>Fahrzeugkatalog</b>\nBitte wählen Sie einen Bereich:",
+        "welcome": (
+            "<b>AutoKomis</b>\n"
+            "Entdecken Sie unsere Fahrzeugangebote.\n"
+            "Fotos ansehen, Daten vergleichen und eine Besichtigung anfragen.\n\n"
+            "<b>Womit möchten Sie beginnen?</b>"
+        ),
         "help": (
             "<b>So verwenden Sie den Bot</b>\n\n"
             "<b>Alle Fahrzeuge</b> — verfügbare Autos ansehen.\n"

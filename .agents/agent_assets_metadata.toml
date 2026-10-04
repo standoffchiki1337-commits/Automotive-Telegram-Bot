@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "9bImEEcBmX6ueQOrl9984"
+uri = "file://attached_assets/generated_images/autokomis_avatar.png"
+type = "image"
+title = "Аватарка Telegram-бота AutoKomis"
+description = "Квадратная аватарка в премиальном стиле: серебристый автомобиль, графитовый фон и золотая подсветка. Чтобы установить её в профиль бота, загрузите изображение через BotFather."
+logical_id = "3cabda68-48f1-465e-b40f-2db694d1b0cb"
+content_hash = "sha256:00d1767453d076f5cca1dfd0dc51aff55a8393c1ae2b7dc1b505bfcfc18319c3"
+size = 1445492
+mtime_ms = 1791107004375
+storage_uri = "gcs://replit-rams-assets-spock/rams/assets/repl:3d86c644-a670-409a-9da5-92b668199770/3cabda68-48f1-465e-b40f-2db694d1b0cb/9573a182-d5d2-453a-a1af-3eb2d0cd2578"
+storage_version_token = "1791107170312628"
+content_type = "image/png"
