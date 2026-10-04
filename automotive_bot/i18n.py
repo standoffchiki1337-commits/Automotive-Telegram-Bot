@@ -7,6 +7,21 @@ TEXTS: dict[str, dict[str, str]] = {
         "language_prompt": "Выберите язык / Wybierz język / Оберіть мову / Choose a language / Sprache wählen:",
         "language_set": "Язык сохранён.",
         "welcome": "🚘 <b>Каталог автомобилей</b>\nВыберите нужный раздел:",
+        "help": (
+            "<b>Как пользоваться ботом</b>\n\n"
+            "<b>Все автомобили</b> — открыть каталог доступных машин.\n"
+            "<b>Поиск и фильтры</b> — подобрать автомобиль по марке или модели, "
+            "топливу, коробке передач, году и максимальной цене.\n"
+            "<b>Карточка автомобиля</b> — листайте фото, добавляйте машину в избранное, "
+            "связывайтесь с администратором или отправляйте заявку на просмотр.\n"
+            "<b>Избранное</b> — сохранённые объявления.\n"
+            "<b>Мои заявки</b> — ваши заявки на просмотр и их статусы.\n"
+            "<b>Написать дилеру</b> — отправить сообщение администраторам.\n"
+            "<b>Профиль клиента</b> — ваши данные и активность.\n"
+            "<b>Язык</b> — сменить язык меню.\n\n"
+            "Кнопки меню работают в любой момент. Отправьте /cancel, чтобы отменить "
+            "текущий шаг. Администраторам доступна панель управления автомобилями и заявками."
+        ),
         "btn_cars": "Все автомобили",
         "btn_search": "Поиск и фильтры",
         "btn_favorites": "Избранное",
@@ -18,6 +33,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "btn_admin_menu": "Меню администратора",
         "btn_main_menu": "Главное меню",
         "btn_language": "Язык",
+        "btn_help": "Как пользоваться",
         "btn_back": "Назад",
         "btn_cancel": "Отмена",
         "btn_next": "Далее",
@@ -150,6 +166,21 @@ TEXTS: dict[str, dict[str, str]] = {
         "language_prompt": "Wybierz język:",
         "language_set": "Język został zapisany.",
         "welcome": "🚘 <b>Katalog samochodów</b>\nWybierz sekcję:",
+        "help": (
+            "<b>Jak korzystać z bota</b>\n\n"
+            "<b>Wszystkie samochody</b> — otwórz katalog dostępnych aut.\n"
+            "<b>Szukaj i filtruj</b> — wyszukuj według marki lub modelu, paliwa, "
+            "skrzyni biegów, rocznika i maksymalnej ceny.\n"
+            "<b>Karta samochodu</b> — przeglądaj zdjęcia, dodawaj auto do ulubionych, "
+            "kontaktuj się z administratorem lub wyślij prośbę o oględziny.\n"
+            "<b>Ulubione</b> — zapisane ogłoszenia.\n"
+            "<b>Moje zgłoszenia</b> — prośby o oględziny i ich statusy.\n"
+            "<b>Napisz do firmy</b> — wyślij wiadomość do administratorów.\n"
+            "<b>Profil klienta</b> — Twoje dane i aktywność.\n"
+            "<b>Język</b> — zmień język menu.\n\n"
+            "Przycisków menu możesz używać w dowolnym momencie. Wyślij /cancel, "
+            "aby anulować bieżący krok. Administratorzy mają panel do zarządzania autami i zgłoszeniami."
+        ),
         "btn_cars": "Wszystkie samochody",
         "btn_search": "Szukaj i filtruj",
         "btn_favorites": "Ulubione",
@@ -161,6 +192,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "btn_admin_menu": "Menu administratora",
         "btn_main_menu": "Menu główne",
         "btn_language": "Język",
+        "btn_help": "Jak korzystać",
         "btn_back": "Wstecz",
         "btn_cancel": "Anuluj",
         "btn_next": "Dalej",
@@ -293,6 +325,21 @@ TEXTS: dict[str, dict[str, str]] = {
         "language_prompt": "Оберіть мову:",
         "language_set": "Мову збережено.",
         "welcome": "🚘 <b>Каталог автомобілів</b>\nОберіть потрібний розділ:",
+        "help": (
+            "<b>Як користуватися ботом</b>\n\n"
+            "<b>Усі автомобілі</b> — відкрити каталог доступних авто.\n"
+            "<b>Пошук і фільтри</b> — шукати за маркою або моделлю, пальним, "
+            "коробкою передач, роком і максимальною ціною.\n"
+            "<b>Картка автомобіля</b> — переглядайте фото, додавайте авто до обраного, "
+            "зв’язуйтеся з адміністратором або надсилайте заявку на перегляд.\n"
+            "<b>Обране</b> — збережені оголошення.\n"
+            "<b>Мої заявки</b> — заявки на перегляд і їхні статуси.\n"
+            "<b>Написати дилеру</b> — надіслати повідомлення адміністраторам.\n"
+            "<b>Профіль клієнта</b> — ваші дані та активність.\n"
+            "<b>Мова</b> — змінити мову меню.\n\n"
+            "Кнопками меню можна користуватися будь-коли. Надішліть /cancel, щоб скасувати "
+            "поточний крок. Адміністраторам доступна панель керування авто та заявками."
+        ),
         "btn_cars": "Усі автомобілі",
         "btn_search": "Пошук і фільтри",
         "btn_favorites": "Обране",
@@ -304,6 +351,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "btn_admin_menu": "Меню адміністратора",
         "btn_main_menu": "Головне меню",
         "btn_language": "Мова",
+        "btn_help": "Як користуватися",
         "btn_back": "Назад",
         "btn_cancel": "Скасувати",
         "btn_next": "Далі",
@@ -436,6 +484,21 @@ TEXTS: dict[str, dict[str, str]] = {
         "language_prompt": "Choose a language / Wybierz język / Выберите язык / Оберіть мову / Sprache wählen:",
         "language_set": "Language saved.",
         "welcome": "🚘 <b>Vehicle catalog</b>\nChoose a section:",
+        "help": (
+            "<b>How to use this bot</b>\n\n"
+            "<b>All vehicles</b> — browse available cars.\n"
+            "<b>Search and filters</b> — filter by make or model, fuel, transmission, "
+            "year, and maximum price.\n"
+            "<b>Vehicle listing</b> — browse photos, save a car to favorites, contact "
+            "the administrator, or request a viewing.\n"
+            "<b>Favorites</b> — your saved listings.\n"
+            "<b>My viewing requests</b> — your viewing requests and their statuses.\n"
+            "<b>Message the dealership</b> — send a message to the administrators.\n"
+            "<b>Customer profile</b> — your details and activity.\n"
+            "<b>Language</b> — change the menu language.\n\n"
+            "You can use the menu buttons at any time. Send /cancel to cancel the current "
+            "step. Administrators have a panel for managing vehicles and requests."
+        ),
         "btn_cars": "All vehicles",
         "btn_search": "Search and filters",
         "btn_favorites": "Favorites",
@@ -447,6 +510,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "btn_admin_menu": "Admin menu",
         "btn_main_menu": "Main menu",
         "btn_language": "Language",
+        "btn_help": "How to use",
         "btn_back": "Back",
         "btn_cancel": "Cancel",
         "btn_next": "Next",
@@ -579,6 +643,21 @@ TEXTS: dict[str, dict[str, str]] = {
         "language_prompt": "Sprache wählen / Wybierz język / Выберите язык / Оберіть мову:",
         "language_set": "Sprache gespeichert.",
         "welcome": "🚘 <b>Fahrzeugkatalog</b>\nBitte wählen Sie einen Bereich:",
+        "help": (
+            "<b>So verwenden Sie den Bot</b>\n\n"
+            "<b>Alle Fahrzeuge</b> — verfügbare Autos ansehen.\n"
+            "<b>Suche und Filter</b> — nach Marke oder Modell, Kraftstoff, Getriebe, "
+            "Baujahr und Höchstpreis filtern.\n"
+            "<b>Fahrzeuganzeige</b> — Fotos ansehen, ein Auto zu den Favoriten hinzufügen, "
+            "den Administrator kontaktieren oder eine Besichtigung anfragen.\n"
+            "<b>Favoriten</b> — Ihre gespeicherten Anzeigen.\n"
+            "<b>Meine Besichtigungen</b> — Ihre Anfragen und deren Status.\n"
+            "<b>Händler anschreiben</b> — eine Nachricht an die Administratoren senden.\n"
+            "<b>Kundenprofil</b> — Ihre Daten und Aktivitäten.\n"
+            "<b>Sprache</b> — Menüsprache ändern.\n\n"
+            "Die Menüschaltflächen funktionieren jederzeit. Senden Sie /cancel, um den "
+            "aktuellen Schritt abzubrechen. Administratoren können Fahrzeuge und Anfragen verwalten."
+        ),
         "btn_cars": "Alle Fahrzeuge",
         "btn_search": "Suche und Filter",
         "btn_favorites": "Favoriten",
@@ -590,6 +669,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "btn_admin_menu": "Admin-Menü",
         "btn_main_menu": "Hauptmenü",
         "btn_language": "Sprache",
+        "btn_help": "Hilfe",
         "btn_back": "Zurück",
         "btn_cancel": "Abbrechen",
         "btn_next": "Weiter",

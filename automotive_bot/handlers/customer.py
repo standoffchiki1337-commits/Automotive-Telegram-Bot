@@ -63,6 +63,7 @@ def _all_menu_button_texts() -> set[str]:
         "btn_business_message",
         "btn_contact",
         "btn_language",
+        "btn_help",
         "btn_admin",
     )
     return set().union(*(_all_button_texts(key) for key in keys))
@@ -392,11 +393,18 @@ async def start_command(message: Message, session_factory, state: FSMContext) ->
 
 
 @router.message(Command("help"))
-async def help_command(message: Message, session_factory) -> None:
+async def help_command(
+    message: Message, session_factory, state: FSMContext
+) -> None:
     if not message.from_user:
         return
+    await state.clear()
     language, admin = await _localized_user(session_factory, message.from_user.id)
-    await message.answer(t(language, "welcome"), reply_markup=home_keyboard(language, admin))
+    await message.answer(
+        t(language, "help"),
+        reply_markup=home_keyboard(language, admin),
+        parse_mode="HTML",
+    )
 
 
 @router.message(Command("cancel"))
@@ -437,6 +445,8 @@ async def navigate_from_main_menu(
         await start_contact(message, state, session_factory)
     elif button in _all_button_texts("btn_language"):
         await language_menu(message, session_factory)
+    elif button in _all_button_texts("btn_help"):
+        await help_command(message, session_factory, state)
     elif button in _all_button_texts("btn_admin"):
         language = await get_user_language(session_factory, message.from_user.id)
         if await is_administrator(session_factory, message.from_user.id):

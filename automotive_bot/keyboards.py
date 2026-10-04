@@ -36,6 +36,7 @@ def home_keyboard(language: str, is_admin: bool = False) -> ReplyKeyboardMarkup:
             KeyboardButton(text=t(language, "btn_business_message")),
         ],
         [KeyboardButton(text=t(language, "btn_language"))],
+        [KeyboardButton(text=t(language, "btn_help"))],
     ]
     if is_admin:
         rows.append([KeyboardButton(text=t(language, "btn_admin"))])
