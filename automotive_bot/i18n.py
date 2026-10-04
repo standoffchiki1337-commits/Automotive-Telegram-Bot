@@ -91,7 +91,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "status_completed": "Завершена",
         "status_cancelled": "Отменена",
         "car_missing": "Это объявление больше недоступно. Вернитесь в каталог, чтобы посмотреть другие автомобили.",
-        "car_missing_admin_photos": "Не удалось найти объявление №{car_id} в базе данных этого экземпляра бота. Если объявление всё ещё видно в каталоге, проверьте, что запущена только одна копия бота и она использует ту же базу данных.",
+        "car_missing_admin_photos": "Не удалось найти объявление №{car_id} в базе данных, к которой подключён этот экземпляр бота. Это не означает, что объявление удалено. Проверьте, что Railway запустил нужную версию бота и сервис использует ту же базу DATABASE_URL, где объявление видно. Проверьте также, что запущена только одна копия бота.",
         "profile_title": "Профиль клиента",
         "profile_name": "Имя",
         "profile_username": "Telegram",
@@ -116,6 +116,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "appointment_back_minute": "‹ Изменить минуты",
         "appointment_cancelled": "Запись на просмотр не создана.",
         "appointment_invalid_date": "Эта дата больше недоступна. Выберите другой день.",
+        "appointment_time_past": "Это время уже прошло. Выберите более позднее время.",
         "appointment_timezone": "Время указано по часовому поясу автосалона — Варшава.",
         "appointment_message_prompt": "Оставьте комментарий, если хотите. Например, задайте вопрос об автомобиле. Или отправьте «-», чтобы пропустить.",
         "appointment_created": "Спасибо! Заявка на просмотр отправлена. Мы свяжемся с вами, чтобы подтвердить время.",
@@ -133,6 +134,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "admin_mileage_prompt": "Введите пробег в километрах:",
         "admin_fuel_prompt": "Выберите до трёх типов топлива. Для бензина с ГБО отметьте «Бензин» и «Газ / LPG», затем нажмите «Готово».",
         "admin_fuel_limit": "Можно выбрать не более трёх типов топлива.",
+        "admin_fuel_required": "Отметьте хотя бы один тип топлива.",
+        "admin_creation_already_done": "Это объявление уже создано или шаг добавления устарел. Откройте панель управления и проверьте список, чтобы не создавать дубликат.",
         "admin_transmission_prompt": "Выберите коробку передач:",
         "admin_description_prompt": "Введите описание автомобиля:",
         "admin_photos_prompt": "Добавьте до 10 фотографий. Первым отправьте лучший общий вид автомобиля — он станет обложкой объявления. Затем можно добавить салон, приборную панель и детали. Отправляйте по одному или альбомом, после загрузки нажмите «Готово». Шаг можно пропустить.",
@@ -268,6 +271,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "status_completed": "Zakończona",
         "status_cancelled": "Anulowana",
         "car_missing": "Ten samochód nie jest już dostępny.",
+        "car_missing_admin_photos": "Nie znaleziono ogłoszenia nr {car_id} w bazie danych, z którą połączona jest ta kopia bota. Nie oznacza to, że ogłoszenie zostało usunięte. Sprawdź, czy Railway uruchomił właściwą wersję bota i czy usługa korzysta z tej samej bazy DATABASE_URL, w której widać ogłoszenie. Sprawdź też, czy działa tylko jedna kopia bota.",
         "profile_title": "Profil klienta",
         "profile_name": "Imię i nazwisko",
         "profile_username": "Telegram",
@@ -292,6 +296,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "appointment_back_minute": "‹ Zmień minuty",
         "appointment_cancelled": "Prośba o oględziny nie została utworzona.",
         "appointment_invalid_date": "Ten termin jest już niedostępny. Wybierz inny dzień.",
+        "appointment_time_past": "Ta godzina już minęła. Wybierz późniejszą godzinę.",
         "appointment_timezone": "Godziny podano w strefie czasowej salonu — Warszawa.",
         "appointment_message_prompt": "Dodaj komentarz lub wyślij „-”, aby pominąć.",
         "appointment_created": "Zgłoszenie wysłano. Administrator skontaktuje się z Tobą.",
@@ -309,6 +314,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "admin_mileage_prompt": "Wpisz przebieg w kilometrach:",
         "admin_fuel_prompt": "Wybierz maksymalnie trzy rodzaje paliwa. Przy LPG zaznacz „Benzyna” i „Gaz / LPG”, a potem naciśnij „Gotowe”.",
         "admin_fuel_limit": "Można wybrać maksymalnie trzy rodzaje paliwa.",
+        "admin_fuel_required": "Wybierz co najmniej jeden rodzaj paliwa.",
+        "admin_creation_already_done": "To ogłoszenie zostało już dodane albo ten krok wygasł. Sprawdź listę w panelu, aby nie utworzyć duplikatu.",
         "admin_transmission_prompt": "Wybierz skrzynię biegów:",
         "admin_description_prompt": "Wpisz opis samochodu:",
         "admin_photos_prompt": "Wyślij zdjęcia pojedynczo lub w albumie, a potem naciśnij „Gotowe”. Możesz pominąć.",
@@ -444,6 +451,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "status_completed": "Завершена",
         "status_cancelled": "Скасована",
         "car_missing": "Цей автомобіль більше недоступний.",
+        "car_missing_admin_photos": "Не вдалося знайти оголошення №{car_id} у базі даних, до якої підключений цей екземпляр бота. Це не означає, що оголошення видалене. Перевірте, чи Railway запустив потрібну версію бота та чи використовує сервіс ту саму базу DATABASE_URL, де оголошення видно. Також перевірте, що запущена лише одна копія бота.",
         "profile_title": "Профіль клієнта",
         "profile_name": "Ім’я",
         "profile_username": "Telegram",
@@ -468,6 +476,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "appointment_back_minute": "‹ Змінити хвилини",
         "appointment_cancelled": "Запис на перегляд не створено.",
         "appointment_invalid_date": "Ця дата вже недоступна. Оберіть інший день.",
+        "appointment_time_past": "Цей час уже минув. Оберіть пізніший час.",
         "appointment_timezone": "Час вказано за часовим поясом автосалону — Варшава.",
         "appointment_message_prompt": "Додайте коментар або надішліть «-», щоб пропустити.",
         "appointment_created": "Заявку надіслано. Адміністратор зв’яжеться з вами.",
@@ -485,6 +494,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "admin_mileage_prompt": "Введіть пробіг у кілометрах:",
         "admin_fuel_prompt": "Оберіть до трьох типів пального. Для бензину з ГБО позначте «Бензин» і «Газ / LPG», потім натисніть «Готово».",
         "admin_fuel_limit": "Можна обрати не більше трьох типів пального.",
+        "admin_fuel_required": "Позначте принаймні один тип пального.",
+        "admin_creation_already_done": "Це оголошення вже створено або крок додавання застарів. Перевірте список у панелі, щоб не створити дублікат.",
         "admin_transmission_prompt": "Оберіть коробку передач:",
         "admin_description_prompt": "Введіть опис автомобіля:",
         "admin_photos_prompt": "Надішліть фото по одному або альбомом, потім натисніть «Готово». Можна пропустити.",
@@ -620,6 +631,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "status_completed": "Completed",
         "status_cancelled": "Cancelled",
         "car_missing": "This vehicle is no longer available.",
+        "car_missing_admin_photos": "Listing #{car_id} was not found in the database used by this bot instance. This does not mean the listing was deleted. Check that Railway is running the intended bot version and that the service uses the same DATABASE_URL database where the listing appears. Also check that only one bot instance is running.",
         "profile_title": "Customer profile",
         "profile_name": "Name",
         "profile_username": "Telegram",
@@ -644,6 +656,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "appointment_back_minute": "‹ Change minutes",
         "appointment_cancelled": "The viewing request was not created.",
         "appointment_invalid_date": "That date is no longer available. Choose another day.",
+        "appointment_time_past": "That time has already passed. Choose a later time.",
         "appointment_timezone": "Times are shown in the dealership's Warsaw time zone.",
         "appointment_message_prompt": "Add a comment, or send “-” to skip.",
         "appointment_created": "Your request was sent. An administrator will contact you.",
@@ -661,6 +674,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "admin_mileage_prompt": "Enter the mileage in kilometres:",
         "admin_fuel_prompt": "Choose up to three fuel types. For LPG, select both “Petrol” and “LPG”, then press “Done”.",
         "admin_fuel_limit": "You can select up to three fuel types.",
+        "admin_fuel_required": "Select at least one fuel type.",
+        "admin_creation_already_done": "This listing was already created or this step has expired. Check the admin list before trying again, to avoid a duplicate.",
         "admin_transmission_prompt": "Choose a transmission:",
         "admin_description_prompt": "Enter the vehicle description:",
         "admin_photos_prompt": "Send photos one at a time or as an album, then press “Done”. You can skip this step.",
@@ -796,6 +811,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "status_completed": "Abgeschlossen",
         "status_cancelled": "Storniert",
         "car_missing": "Dieses Fahrzeug ist nicht mehr verfügbar.",
+        "car_missing_admin_photos": "Anzeige Nr. {car_id} wurde in der Datenbank dieser Bot-Instanz nicht gefunden. Das bedeutet nicht, dass die Anzeige gelöscht wurde. Prüfen Sie, ob Railway die gewünschte Bot-Version ausführt und der Dienst dieselbe DATABASE_URL-Datenbank verwendet, in der die Anzeige sichtbar ist. Prüfen Sie auch, ob nur eine Bot-Instanz läuft.",
         "profile_title": "Kundenprofil",
         "profile_name": "Name",
         "profile_username": "Telegram",
@@ -820,6 +836,7 @@ TEXTS: dict[str, dict[str, str]] = {
         "appointment_back_minute": "‹ Minuten ändern",
         "appointment_cancelled": "Es wurde keine Besichtigungsanfrage erstellt.",
         "appointment_invalid_date": "Dieser Termin ist nicht mehr verfügbar. Wählen Sie ein anderes Datum.",
+        "appointment_time_past": "Diese Uhrzeit ist bereits vergangen. Wählen Sie eine spätere Uhrzeit.",
         "appointment_timezone": "Die Zeiten entsprechen der Zeitzone des Autohauses — Warschau.",
         "appointment_message_prompt": "Kommentar hinzufügen oder „-“ zum Überspringen senden.",
         "appointment_created": "Ihre Anfrage wurde gesendet. Ein Administrator meldet sich bei Ihnen.",
@@ -837,6 +854,8 @@ TEXTS: dict[str, dict[str, str]] = {
         "admin_mileage_prompt": "Kilometerstand eingeben:",
         "admin_fuel_prompt": "Wählen Sie bis zu drei Kraftstoffarten. Für LPG „Benzin“ und „LPG“ markieren, dann auf „Fertig“ tippen.",
         "admin_fuel_limit": "Sie können bis zu drei Kraftstoffarten auswählen.",
+        "admin_fuel_required": "Wählen Sie mindestens eine Kraftstoffart.",
+        "admin_creation_already_done": "Diese Anzeige wurde bereits erstellt oder dieser Schritt ist abgelaufen. Prüfen Sie die Verwaltungsliste, bevor Sie es erneut versuchen, damit kein Duplikat entsteht.",
         "admin_transmission_prompt": "Getriebe auswählen:",
         "admin_description_prompt": "Fahrzeugbeschreibung eingeben:",
         "admin_photos_prompt": "Fotos einzeln oder als Album senden und anschließend auf „Fertig“ tippen. Dieser Schritt kann übersprungen werden.",
@@ -890,6 +909,7 @@ FUEL_KEYS = {
     "hybrid": "fuel_hybrid",
     "lpg": "fuel_lpg",
 }
+MAX_FUEL_TYPES = 3
 TRANSMISSION_KEYS = {
     "manual": "trans_manual",
     "automatic": "trans_automatic",
@@ -935,6 +955,19 @@ def selected_fuel_types(value: str | None) -> tuple[str, ...]:
             fuel for fuel in value.split("+") if fuel in FUEL_KEYS
         )
     )
+
+
+def toggle_fuel_type(
+    selected: tuple[str, ...] | list[str], fuel: str
+) -> tuple[str, ...]:
+    if fuel not in FUEL_KEYS:
+        raise ValueError("Unknown fuel type")
+    normalized = tuple(dict.fromkeys(item for item in selected if item in FUEL_KEYS))
+    if fuel in normalized:
+        return tuple(item for item in normalized if item != fuel)
+    if len(normalized) >= MAX_FUEL_TYPES:
+        raise ValueError("Too many fuel types")
+    return (*normalized, fuel)
 
 
 def fuel_label(language: str, value: str | None) -> str:

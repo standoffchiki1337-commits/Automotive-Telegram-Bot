@@ -21,11 +21,15 @@ from automotive_bot.config import Settings
 from automotive_bot.filters import AdminOnly
 from automotive_bot.i18n import (
     FUEL_KEYS,
+    MAX_FUEL_TYPES,
     STATUS_KEYS,
     TEXTS,
     TRANSMISSION_KEYS,
+    fuel_label,
+    selected_fuel_types,
     status_badge,
     t,
+    toggle_fuel_type,
 )
 from automotive_bot.keyboards import (
     admin_car_actions,
@@ -34,7 +38,7 @@ from automotive_bot.keyboards import (
     confirmation_keyboard,
     done_keyboard,
     edit_fields_keyboard,
-    fuel_keyboard,
+    fuel_selection_keyboard,
     request_actions,
     transmission_keyboard,
 )
@@ -81,7 +85,7 @@ async def _admin_car_text(session_factory, car_id: int, language: str, settings:
         )
         if car is None:
             return None
-        fuel = t(language, FUEL_KEYS.get(car.fuel_type, "fuel_any"))
+        fuel = fuel_label(language, car.fuel_type)
         transmission = t(
             language, TRANSMISSION_KEYS.get(car.transmission, "trans_other")
         )
@@ -139,27 +143,51 @@ async def _finish_car_creation(
     session_factory,
     language: str,
     settings: Settings,
+    created_by: int,
 ) -> None:
     data = await state.get_data()
+    required = (
+        "make_model",
+        "year",
+        "price",
+        "mileage",
+        "fuel_type",
+        "transmission",
+        "description",
+    )
+    if data.get("_creating_car") or any(data.get(key) is None for key in required):
+        await message.answer(t(language, "admin_creation_already_done"))
+        return
+    selected_fuels = selected_fuel_types(data["fuel_type"])
+    if not 1 <= len(selected_fuels) <= MAX_FUEL_TYPES:
+        await message.answer(t(language, "admin_creation_already_done"))
+        return
+    await state.update_data(_creating_car=True)
     photos = list(data.get("photos", []))[:10]
-    async with session_factory() as session:
-        car = Car(
-            make_model=data["make_model"],
-            year=int(data["year"]),
-            price=Decimal(str(data["price"])),
-            mileage=int(data["mileage"]),
-            fuel_type=data["fuel_type"],
-            transmission=data["transmission"],
-            description=data["description"],
-            status="available",
-            created_by=message.from_user.id,
-        )
-        session.add(car)
-        await session.flush()
-        for position, file_id in enumerate(photos):
-            session.add(CarPhoto(car_id=car.id, file_id=file_id, position=position))
-        await session.commit()
-        car_id = car.id
+    try:
+        async with session_factory() as session:
+            car = Car(
+                make_model=data["make_model"],
+                year=int(data["year"]),
+                price=Decimal(str(data["price"])),
+                mileage=int(data["mileage"]),
+                fuel_type="+".join(selected_fuels),
+                transmission=data["transmission"],
+                description=data["description"],
+                status="available",
+                created_by=created_by,
+            )
+            session.add(car)
+            await session.flush()
+            for position, file_id in enumerate(photos):
+                session.add(
+                    CarPhoto(car_id=car.id, file_id=file_id, position=position)
+                )
+            await session.commit()
+            car_id = car.id
+    except Exception:
+        await state.update_data(_creating_car=False)
+        raise
     await state.clear()
     summary = await _admin_car_text(session_factory, car_id, language, settings)
     await message.answer(t(language, "admin_car_created"))
@@ -247,23 +275,56 @@ async def add_car_mileage(message: Message, state: FSMContext, session_factory) 
         await message.answer(t(language, "admin_invalid_mileage"))
         return
     await state.update_data(mileage=mileage)
+    await state.update_data(selected_fuels=[])
     await state.set_state(AddCarFlow.fuel)
     await message.answer(
         t(language, "admin_fuel_prompt"),
-            reply_markup=fuel_keyboard(language, "admin:addfuel", include_any=False),
+        reply_markup=fuel_selection_keyboard(language, "admin:addfuel", []),
     )
 
 
-@router.callback_query(AddCarFlow.fuel, F.data.startswith("admin:addfuel:"))
-async def add_car_fuel(callback: CallbackQuery, state: FSMContext, session_factory) -> None:
+@router.callback_query(
+    AddCarFlow.fuel, F.data.startswith("admin:addfuel:toggle:")
+)
+async def toggle_add_car_fuel(
+    callback: CallbackQuery, state: FSMContext, session_factory
+) -> None:
+    await callback.answer()
     language = await get_user_language(session_factory, callback.from_user.id)
     fuel = str(callback.data).split(":")[-1]
-    if fuel == "any" or fuel not in FUEL_KEYS:
-        await callback.answer()
+    data = await state.get_data()
+    selected = list(data.get("selected_fuels", []))
+    if fuel not in FUEL_KEYS:
         return
-    await state.update_data(fuel_type=fuel)
-    await state.set_state(AddCarFlow.transmission)
+    try:
+        selected = list(toggle_fuel_type(selected, fuel))
+    except ValueError:
+        if callback.message:
+            await callback.message.answer(t(language, "admin_fuel_limit"))
+        return
+    await state.update_data(selected_fuels=selected)
+    if callback.message:
+        await callback.message.edit_reply_markup(
+            reply_markup=fuel_selection_keyboard(
+                language, "admin:addfuel", selected
+            )
+        )
+
+
+@router.callback_query(AddCarFlow.fuel, F.data == "admin:addfuel:done")
+async def add_car_fuel_done(
+    callback: CallbackQuery, state: FSMContext, session_factory
+) -> None:
     await callback.answer()
+    language = await get_user_language(session_factory, callback.from_user.id)
+    data = await state.get_data()
+    selected = selected_fuel_types("+".join(data.get("selected_fuels", [])))
+    if not selected:
+        if callback.message:
+            await callback.message.answer(t(language, "admin_fuel_required"))
+        return
+    await state.update_data(fuel_type="+".join(selected))
+    await state.set_state(AddCarFlow.transmission)
     if callback.message:
         await callback.message.answer(
             t(language, "admin_transmission_prompt"),
@@ -273,14 +334,13 @@ async def add_car_fuel(callback: CallbackQuery, state: FSMContext, session_facto
 
 @router.callback_query(AddCarFlow.transmission, F.data.startswith("admin:addtrans:"))
 async def add_car_transmission(callback: CallbackQuery, state: FSMContext, session_factory) -> None:
+    await callback.answer()
     language = await get_user_language(session_factory, callback.from_user.id)
     transmission = str(callback.data).split(":")[-1]
     if transmission not in TRANSMISSION_KEYS:
-        await callback.answer()
         return
     await state.update_data(transmission=transmission)
     await state.set_state(AddCarFlow.description)
-    await callback.answer()
     if callback.message:
         await callback.message.answer(t(language, "admin_description_prompt"))
 
@@ -319,13 +379,24 @@ async def add_car_photo(message: Message, state: FSMContext, session_factory) ->
     )
 
 
-@router.callback_query(AddCarFlow.photos, F.data == "admin:addphotos:done")
+@router.callback_query(F.data == "admin:addphotos:done")
 async def finish_add_car(callback: CallbackQuery, state: FSMContext, session_factory, settings: Settings) -> None:
-    language = await get_user_language(session_factory, callback.from_user.id)
     await callback.answer()
+    language = await get_user_language(session_factory, callback.from_user.id)
+    if await state.get_state() != AddCarFlow.photos.state:
+        if callback.message:
+            await callback.message.answer(
+                t(language, "admin_creation_already_done")
+            )
+        return
     if callback.message:
         await _finish_car_creation(
-            callback.message, state, session_factory, language, settings
+            callback.message,
+            state,
+            session_factory,
+            language,
+            settings,
+            created_by=callback.from_user.id,
         )
 
 
@@ -397,7 +468,7 @@ async def update_car_status(callback: CallbackQuery, session_factory, settings: 
     async with session_factory() as session:
         car = await session.get(Car, car_id)
         if car is None:
-            await callback.answer(t(language, "car_missing"), show_alert=True)
+            await callback.message.answer(t(language, "car_missing"))
             return
         car.status = status
         await session.commit()
@@ -414,7 +485,10 @@ async def edit_car_start(callback: CallbackQuery, state: FSMContext, session_fac
     language = await get_user_language(session_factory, callback.from_user.id)
     async with session_factory() as session:
         if await session.get(Car, car_id) is None:
-            await callback.answer(t(language, "car_missing"), show_alert=True)
+            await callback.answer()
+            await callback.message.answer(
+                t(language, "car_missing_admin_photos", car_id=car_id)
+            )
             return
     await state.clear()
     await state.update_data(car_id=car_id)
@@ -430,9 +504,16 @@ async def choose_edit_field(callback: CallbackQuery, state: FSMContext, session_
     if not callback.message:
         await callback.answer()
         return
+    await callback.answer()
     _, _, _, raw_id, field = str(callback.data).split(":")
     car_id = int(raw_id)
     language = await get_user_language(session_factory, callback.from_user.id)
+    async with session_factory() as session:
+        car = await session.get(Car, car_id)
+        if car is None:
+            await callback.message.answer(t(language, "car_missing"))
+            return
+        current_fuels = selected_fuel_types(car.fuel_type)
     editable = {
         "make_model",
         "year",
@@ -443,25 +524,22 @@ async def choose_edit_field(callback: CallbackQuery, state: FSMContext, session_
         "description",
     }
     if field not in editable:
-        await callback.answer()
         return
     await state.clear()
-    await state.update_data(car_id=car_id, field=field)
+    await state.update_data(
+        car_id=car_id, field=field, selected_fuels=list(current_fuels)
+    )
     if field == "fuel_type":
         await state.set_state(EditCarFlow.value)
-        await callback.answer()
         await callback.message.answer(
             t(language, "admin_fuel_prompt"),
-            reply_markup=fuel_keyboard(
-                language,
-                f"admin:editchoice:{car_id}:fuel_type",
-                include_any=False,
+            reply_markup=fuel_selection_keyboard(
+                language, f"admin:editfuel:{car_id}", current_fuels
             ),
         )
         return
     if field == "transmission":
         await state.set_state(EditCarFlow.value)
-        await callback.answer()
         await callback.message.answer(
             t(language, "admin_transmission_prompt"),
             reply_markup=transmission_keyboard(
@@ -470,8 +548,68 @@ async def choose_edit_field(callback: CallbackQuery, state: FSMContext, session_
         )
         return
     await state.set_state(EditCarFlow.value)
-    await callback.answer()
     await callback.message.answer(t(language, "admin_edit_value"))
+
+
+@router.callback_query(EditCarFlow.value, F.data.startswith("admin:editfuel:"))
+async def edit_car_fuel_selection(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session_factory,
+    settings: Settings,
+) -> None:
+    if not callback.message or not callback.from_user:
+        await callback.answer()
+        return
+    await callback.answer()
+    language = await get_user_language(session_factory, callback.from_user.id)
+    parts = str(callback.data).split(":")
+    if len(parts) != 5:
+        return
+    car_id, action, fuel = int(parts[2]), parts[3], parts[4]
+    data = await state.get_data()
+    if int(data.get("car_id", 0)) != car_id or data.get("field") != "fuel_type":
+        await callback.message.answer(t(language, "admin_creation_already_done"))
+        return
+    selected = list(data.get("selected_fuels", []))
+    if action == "toggle":
+        if fuel not in FUEL_KEYS:
+            return
+        try:
+            selected = list(toggle_fuel_type(selected, fuel))
+        except ValueError:
+            await callback.message.answer(t(language, "admin_fuel_limit"))
+            return
+        await state.update_data(selected_fuels=selected)
+        await callback.message.edit_reply_markup(
+            reply_markup=fuel_selection_keyboard(
+                language, f"admin:editfuel:{car_id}", selected
+            )
+        )
+        return
+    if action != "done":
+        return
+    selected = list(selected_fuel_types("+".join(selected)))
+    if not selected:
+        await callback.message.answer(t(language, "admin_fuel_required"))
+        return
+    async with session_factory() as session:
+        car = await session.get(Car, car_id)
+        if car is None:
+            await state.clear()
+            await callback.message.answer(t(language, "car_missing"))
+            return
+        car.fuel_type = "+".join(selected)
+        await session.commit()
+    await state.clear()
+    await callback.message.answer(t(language, "admin_saved"))
+    text = await _admin_car_text(session_factory, car_id, language, settings)
+    if text:
+        await callback.message.answer(
+            text,
+            parse_mode="HTML",
+            reply_markup=admin_car_actions(language, car_id),
+        )
 
 
 @router.callback_query(EditCarFlow.value, F.data.startswith("admin:editchoice:"))
@@ -567,7 +705,9 @@ async def ask_delete_car(callback: CallbackQuery, session_factory) -> None:
     language = await get_user_language(session_factory, callback.from_user.id)
     async with session_factory() as session:
         if await session.get(Car, car_id) is None:
-            await callback.answer(t(language, "car_missing"), show_alert=True)
+            await callback.message.answer(
+                t(language, "car_missing_admin_photos", car_id=car_id)
+            )
             return
     await callback.answer()
     await callback.message.answer(
@@ -597,6 +737,7 @@ async def add_photos_start(callback: CallbackQuery, state: FSMContext, session_f
     if not callback.message:
         await callback.answer()
         return
+    await callback.answer()
     car_id = int(str(callback.data).split(":")[-1])
     language = await get_user_language(session_factory, callback.from_user.id)
     async with session_factory() as session:
@@ -606,7 +747,6 @@ async def add_photos_start(callback: CallbackQuery, state: FSMContext, session_f
     await state.clear()
     await state.update_data(car_id=car_id)
     await state.set_state(EditCarFlow.photos)
-    await callback.answer()
     await callback.message.answer(
         t(language, "admin_photos_prompt"),
         reply_markup=done_keyboard(language, f"admin:photosdone:{car_id}"),
@@ -624,7 +764,9 @@ async def add_photos_to_car(message: Message, state: FSMContext, session_factory
         )
         if car is None:
             await state.clear()
-            await message.answer(t(language, "car_missing"))
+            await message.answer(
+                t(language, "car_missing_admin_photos", car_id=car_id)
+            )
             return
         if len(car.photos) >= 10:
             await message.answer(t(language, "admin_photo_limit"))

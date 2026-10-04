@@ -21,6 +21,7 @@ from automotive_bot.config import Settings
 from automotive_bot.appointment_calendar import (
     MAX_ADVANCE_DAYS,
     DEALERSHIP_TIMEZONE,
+    appointment_time_is_future,
     appointment_confirmation_keyboard,
     appointment_date_keyboard,
     appointment_hour_keyboard,
@@ -1018,7 +1019,7 @@ async def appointment_choose_date(
     await callback.message.edit_text(
         f"{t(language, 'appointment_pick_hour', date=selected_date.strftime('%d.%m.%Y'))}\n\n"
         f"{t(language, 'appointment_timezone')}",
-        reply_markup=appointment_hour_keyboard(language),
+        reply_markup=appointment_hour_keyboard(language, selected_date),
     )
 
 
@@ -1065,12 +1066,16 @@ async def appointment_choose_hour(
     if not 0 <= hour <= 23:
         await callback.answer()
         return
+    selected_day = date.fromisoformat(selected_date)
+    if not appointment_time_is_future(selected_day, hour, 59):
+        await callback.answer(t(language, "appointment_time_past"), show_alert=True)
+        return
     await state.update_data(appointment_hour=hour, appointment_minute=None)
     await callback.answer()
     await callback.message.edit_text(
         f"{t(language, 'appointment_pick_minute', date=date.fromisoformat(selected_date).strftime('%d.%m.%Y'), hour=f'{hour:02d}:__')}\n\n"
         f"{t(language, 'appointment_timezone')}",
-        reply_markup=appointment_minute_keyboard(language),
+        reply_markup=appointment_minute_keyboard(language, selected_day, hour),
     )
 
 
@@ -1093,7 +1098,9 @@ async def appointment_return_to_hours(
     await callback.message.edit_text(
         f"{t(language, 'appointment_pick_hour', date=date.fromisoformat(selected_date).strftime('%d.%m.%Y'))}\n\n"
         f"{t(language, 'appointment_timezone')}",
-        reply_markup=appointment_hour_keyboard(language),
+        reply_markup=appointment_hour_keyboard(
+            language, date.fromisoformat(selected_date)
+        ),
     )
 
 
@@ -1116,6 +1123,11 @@ async def appointment_choose_minute(
     minute = int(str(callback.data).split(":")[-1])
     if not 0 <= minute <= 59:
         await callback.answer()
+        return
+    if not appointment_time_is_future(
+        date.fromisoformat(selected_date), int(hour), minute
+    ):
+        await callback.answer(t(language, "appointment_time_past"), show_alert=True)
         return
     await state.update_data(appointment_minute=minute)
     chosen = datetime.combine(
@@ -1152,7 +1164,9 @@ async def appointment_return_to_minutes(
     await callback.message.edit_text(
         f"{t(language, 'appointment_change_minutes', hour=f'{hour:02d}')}\n"
         f"{t(language, 'appointment_timezone')}",
-        reply_markup=appointment_minute_keyboard(language),
+        reply_markup=appointment_minute_keyboard(
+            language, date.fromisoformat(selected_date), int(hour)
+        ),
     )
 
 
@@ -1189,6 +1203,9 @@ async def appointment_confirm_time(
         datetime.min.time().replace(hour=hour, minute=minute),
         tzinfo=DEALERSHIP_TIMEZONE,
     )
+    if chosen <= datetime.now(DEALERSHIP_TIMEZONE):
+        await callback.answer(t(language, "appointment_time_past"), show_alert=True)
+        return
     preferred_time = (
         f"{chosen.strftime('%d.%m.%Y %H:%M')} (Europe/Warsaw)"
     )

@@ -47,6 +47,21 @@ def dealership_today() -> date:
     return datetime.now(DEALERSHIP_TIMEZONE).date()
 
 
+def appointment_time_is_future(
+    selected_date: date,
+    hour: int,
+    minute: int,
+    now: datetime | None = None,
+) -> bool:
+    current = now or datetime.now(DEALERSHIP_TIMEZONE)
+    chosen = datetime.combine(
+        selected_date,
+        datetime.min.time().replace(hour=hour, minute=minute),
+        tzinfo=DEALERSHIP_TIMEZONE,
+    )
+    return chosen > current
+
+
 def appointment_date_keyboard(
     language: str, year: int, month: int, today: date | None = None
 ) -> InlineKeyboardMarkup:
@@ -129,12 +144,32 @@ def appointment_date_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def appointment_hour_keyboard(language: str) -> InlineKeyboardMarkup:
+def appointment_hour_keyboard(
+    language: str,
+    selected_date: date | None = None,
+    now: datetime | None = None,
+) -> InlineKeyboardMarkup:
+    current = now or datetime.now(DEALERSHIP_TIMEZONE)
+
+    def can_choose_hour(hour: int) -> bool:
+        return (
+            selected_date is None
+            or selected_date > current.date()
+            or (
+                selected_date == current.date()
+                and appointment_time_is_future(selected_date, hour, 59, current)
+            )
+        )
+
     rows = [
         [
             InlineKeyboardButton(
-                text=f"{hour:02d}",
-                callback_data=f"viewing:hour:{hour:02d}",
+                text=f"{hour:02d}" if can_choose_hour(hour) else "·",
+                callback_data=(
+                    f"viewing:hour:{hour:02d}"
+                    if can_choose_hour(hour)
+                    else "viewing:noop"
+                ),
             )
             for hour in range(start, start + 4)
         ]
@@ -151,12 +186,34 @@ def appointment_hour_keyboard(language: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def appointment_minute_keyboard(language: str) -> InlineKeyboardMarkup:
+def appointment_minute_keyboard(
+    language: str,
+    selected_date: date | None = None,
+    selected_hour: int | None = None,
+    now: datetime | None = None,
+) -> InlineKeyboardMarkup:
+    current = now or datetime.now(DEALERSHIP_TIMEZONE)
     rows = [
         [
             InlineKeyboardButton(
-                text=f"{minute:02d}",
-                callback_data=f"viewing:minute:{minute:02d}",
+                text=(
+                    f"{minute:02d}"
+                    if selected_date is None
+                    or selected_hour is None
+                    or appointment_time_is_future(
+                        selected_date, selected_hour, minute, current
+                    )
+                    else "·"
+                ),
+                callback_data=(
+                    f"viewing:minute:{minute:02d}"
+                    if selected_date is None
+                    or selected_hour is None
+                    or appointment_time_is_future(
+                        selected_date, selected_hour, minute, current
+                    )
+                    else "viewing:noop"
+                ),
             )
             for minute in range(start, start + 6)
         ]
