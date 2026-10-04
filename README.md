@@ -64,7 +64,7 @@ Prices are displayed in Polish złoty (`zł`).
 
 ## Customer controls
 
-Use `/start` to choose a language before opening the menu. The **Contact seller** button on a vehicle listing opens the primary bot administrator's Telegram account. Customers can browse available vehicles, filter the catalog, save favorites, request an appointment, review their own requests, or send a message to the business.
+Use `/start` to choose a language before opening the menu. Main-menu buttons remain usable during an active prompt and take the user to the selected section. The **Contact seller** button on a vehicle listing opens the primary bot administrator's Telegram account. Customers can browse available vehicles, filter the catalog, save favorites, request an appointment, review their own requests, or send a message to the business.
 
 ## Administrator controls
 

@@ -20,3 +20,9 @@ For listing contact, open the primary bot administrator's Telegram account. Link
 **Why:** The owner explicitly requested listing inquiries go to the bot administrator's account rather than the listing creator.
 
 **How to apply:** Select the earliest active administrator as the primary contact; if that administrator is removed, use the next active administrator.
+
+Main-menu buttons must work from any active conversation flow; customers and admins should not need `/start` just to navigate away from a prompt.
+
+**Why:** The owner reported that pressing buttons during bot flows could leave users needing to restart the bot.
+
+**How to apply:** Treat home-keyboard selections as navigation, clear the current FSM state before dispatching the chosen action, and keep inline return buttons clearing state too.

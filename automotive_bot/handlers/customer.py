@@ -4,6 +4,7 @@ from decimal import Decimal, InvalidOperation
 from html import escape
 
 from aiogram import Bot, F, Router
+from aiogram.dispatcher.event.bases import SkipHandler
 from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.types import (
@@ -25,6 +26,7 @@ from automotive_bot.i18n import (
 )
 from automotive_bot.keyboards import (
     back_keyboard,
+    admin_menu_keyboard,
     car_actions,
     car_results,
     fuel_keyboard,
@@ -50,6 +52,21 @@ router = Router(name="customer")
 
 def _all_button_texts(key: str) -> set[str]:
     return {language[key] for language in TEXTS.values()}
+
+
+def _all_menu_button_texts() -> set[str]:
+    keys = (
+        "btn_cars",
+        "btn_search",
+        "btn_favorites",
+        "btn_requests",
+        "btn_profile",
+        "btn_business_message",
+        "btn_contact",
+        "btn_language",
+        "btn_admin",
+    )
+    return set().union(*(_all_button_texts(key) for key in keys))
 
 
 async def _localized_user(session_factory, telegram_id: int) -> tuple[str, bool]:
@@ -391,6 +408,50 @@ async def cancel_command(message: Message, state: FSMContext, session_factory) -
         await message.answer(t(language, "btn_cancel"), reply_markup=home_keyboard(language, admin))
 
 
+@router.message(F.text.in_(_all_menu_button_texts()))
+async def navigate_from_active_flow(
+    message: Message,
+    state: FSMContext,
+    session_factory,
+    bot: Bot,
+    settings: Settings,
+) -> None:
+    if await state.get_state() is None:
+        raise SkipHandler()
+
+    if not message.from_user or not message.text:
+        return
+
+    button = message.text
+    await state.clear()
+    if button in _all_button_texts("btn_cars"):
+        await browse_cars(message, session_factory, bot, settings, state)
+    elif button in _all_button_texts("btn_search"):
+        await start_search(message, state, session_factory)
+    elif button in _all_button_texts("btn_favorites"):
+        await show_favorites(message, state, session_factory, bot, settings)
+    elif button in _all_button_texts("btn_requests"):
+        await my_requests(message, session_factory)
+    elif button in _all_button_texts("btn_profile"):
+        await show_profile(message, session_factory)
+    elif button in (
+        _all_button_texts("btn_business_message")
+        | _all_button_texts("btn_contact")
+    ):
+        await start_contact(message, state, session_factory)
+    elif button in _all_button_texts("btn_language"):
+        await language_menu(message, session_factory)
+    elif button in _all_button_texts("btn_admin"):
+        language = await get_user_language(session_factory, message.from_user.id)
+        if await is_administrator(session_factory, message.from_user.id):
+            await message.answer(
+                t(language, "admin_menu"),
+                reply_markup=admin_menu_keyboard(language),
+            )
+        else:
+            await message.answer(t(language, "admin_denied"))
+
+
 @router.callback_query(F.data.startswith("language:"))
 async def choose_language(callback: CallbackQuery, session_factory) -> None:
     if not callback.from_user:
@@ -445,10 +506,13 @@ async def show_profile(message: Message, session_factory) -> None:
 
 
 @router.callback_query(F.data == "menu:profile")
-async def show_profile_callback(callback: CallbackQuery, session_factory) -> None:
+async def show_profile_callback(
+    callback: CallbackQuery, session_factory, state: FSMContext
+) -> None:
     if not callback.from_user or not callback.message:
         await callback.answer()
         return
+    await state.clear()
     language = await get_user_language(session_factory, callback.from_user.id)
     await callback.answer()
     await callback.message.answer(
@@ -486,10 +550,13 @@ async def show_favorites_callback(
 
 
 @router.callback_query(F.data == "menu:requests")
-async def show_requests_callback(callback: CallbackQuery, session_factory) -> None:
+async def show_requests_callback(
+    callback: CallbackQuery, session_factory, state: FSMContext
+) -> None:
     if not callback.from_user or not callback.message:
         await callback.answer()
         return
+    await state.clear()
     language = await get_user_language(session_factory, callback.from_user.id)
     text = await _request_history_text(
         session_factory, callback.from_user.id, language
@@ -609,6 +676,7 @@ async def search_receive_price(message: Message, state: FSMContext, session_fact
         await message.answer(t(language, "admin_invalid_number"))
         return
     await state.update_data(price_max=float(price) if price else None, list_kind="search")
+    await state.set_state(None)
     await _show_car_page(bot, message.chat.id, message.from_user.id, session_factory, settings, state, 0, language)
 
 

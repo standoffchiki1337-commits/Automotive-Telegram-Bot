@@ -174,7 +174,10 @@ async def admin_menu_from_button(message: Message, session_factory) -> None:
 
 
 @router.callback_query(F.data == "admin:panel")
-async def admin_panel(callback: CallbackQuery, session_factory) -> None:
+async def admin_panel(
+    callback: CallbackQuery, session_factory, state: FSMContext
+) -> None:
+    await state.clear()
     language = await get_user_language(session_factory, callback.from_user.id)
     await callback.answer()
     if callback.message:
