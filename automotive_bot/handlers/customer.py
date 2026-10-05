@@ -994,19 +994,17 @@ async def appointment_picker_reminder(
     )
 
 
-@router.callback_query(
-    ViewingRequestFlow.preferred_time, F.data.startswith("viewing:month:")
-)
+@router.callback_query(F.data.startswith("viewing:month:"))
 async def appointment_change_month(
     callback: CallbackQuery, session_factory
 ) -> None:
     if not callback.from_user or not callback.message:
         await callback.answer()
         return
+    await callback.answer()
     language = await get_user_language(session_factory, callback.from_user.id)
     _, _, _, raw_year, raw_month = str(callback.data).split(":")
     today = dealership_today()
-    await callback.answer()
     await callback.message.edit_reply_markup(
         reply_markup=appointment_date_keyboard(
             language, int(raw_year), int(raw_month), today
@@ -1014,18 +1012,16 @@ async def appointment_change_month(
     )
 
 
-@router.callback_query(
-    ViewingRequestFlow.preferred_time, F.data.startswith("viewing:select-month:")
-)
+@router.callback_query(F.data.startswith("viewing:select-month:"))
 async def appointment_open_month_picker(
     callback: CallbackQuery, session_factory
 ) -> None:
     if not callback.from_user or not callback.message:
         await callback.answer()
         return
+    await callback.answer()
     language = await get_user_language(session_factory, callback.from_user.id)
     _, _, _, raw_year, raw_month = str(callback.data).split(":")
-    await callback.answer()
     await callback.message.edit_reply_markup(
         reply_markup=appointment_month_keyboard(
             language, int(raw_year), int(raw_month), dealership_today()
@@ -1033,18 +1029,16 @@ async def appointment_open_month_picker(
     )
 
 
-@router.callback_query(
-    ViewingRequestFlow.preferred_time, F.data.startswith("viewing:year:")
-)
+@router.callback_query(F.data.startswith("viewing:year:"))
 async def appointment_change_picker_year(
     callback: CallbackQuery, session_factory
 ) -> None:
     if not callback.from_user or not callback.message:
         await callback.answer()
         return
+    await callback.answer()
     language = await get_user_language(session_factory, callback.from_user.id)
     _, _, raw_year, raw_month = str(callback.data).split(":")
-    await callback.answer()
     await callback.message.edit_reply_markup(
         reply_markup=appointment_month_keyboard(
             language, int(raw_year), int(raw_month), dealership_today()
@@ -1052,19 +1046,17 @@ async def appointment_change_picker_year(
     )
 
 
-@router.callback_query(
-    ViewingRequestFlow.preferred_time, F.data.startswith("viewing:calendar:")
-)
+@router.callback_query(F.data.startswith("viewing:calendar:"))
 async def appointment_return_from_month_picker(
     callback: CallbackQuery, session_factory
 ) -> None:
     if not callback.from_user or not callback.message:
         await callback.answer()
         return
+    await callback.answer()
     language = await get_user_language(session_factory, callback.from_user.id)
     _, _, raw_year, raw_month = str(callback.data).split(":")
     today = dealership_today()
-    await callback.answer()
     await callback.message.edit_reply_markup(
         reply_markup=appointment_date_keyboard(
             language, int(raw_year), int(raw_month), today
@@ -1321,6 +1313,19 @@ async def appointment_cancel(
 @router.callback_query(F.data == "viewing:noop")
 async def appointment_ignore_calendar_button(callback: CallbackQuery) -> None:
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("viewing:"))
+async def appointment_expired_callback(
+    callback: CallbackQuery, session_factory
+) -> None:
+    if not callback.from_user:
+        await callback.answer()
+        return
+    language = await get_user_language(session_factory, callback.from_user.id)
+    await callback.answer(
+        t(language, "appointment_session_expired"), show_alert=True
+    )
 
 
 @router.message(ViewingRequestFlow.message)

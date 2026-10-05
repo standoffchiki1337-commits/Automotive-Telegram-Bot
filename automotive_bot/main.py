@@ -6,7 +6,7 @@ import logging
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 from aiogram.types import BotCommand
 
 from automotive_bot.config import load_settings
@@ -35,7 +35,10 @@ async def main() -> None:
         token=settings.bot_token,
         default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
-    dispatcher = Dispatcher(storage=MemoryStorage())
+    dispatcher = Dispatcher(
+        storage=MemoryStorage(),
+        events_isolation=SimpleEventIsolation(),
+    )
     dispatcher["session_factory"] = session_factory
     dispatcher["settings"] = settings
     dispatcher.include_router(customer.router)
@@ -54,7 +57,7 @@ async def main() -> None:
         await dispatcher.start_polling(
             bot,
             allowed_updates=dispatcher.resolve_used_update_types(),
-            handle_as_tasks=False,
+            handle_as_tasks=True,
         )
     finally:
         await bot.session.close()

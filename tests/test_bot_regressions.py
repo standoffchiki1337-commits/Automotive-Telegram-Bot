@@ -163,6 +163,15 @@ class AppointmentTimeTests(unittest.TestCase):
         month_button = calendar_keyboard.inline_keyboard[0][0]
         self.assertEqual(month_button.callback_data, "viewing:select-month:2026:10")
 
+        next_month = calendar_keyboard.inline_keyboard[-2][1]
+        self.assertEqual(next_month.callback_data, "viewing:month:2026:11")
+
+        last_available_month = appointment_date_keyboard("ru", 2027, 10, today)
+        self.assertEqual(
+            last_available_month.inline_keyboard[-2][1].callback_data,
+            "viewing:noop",
+        )
+
         picker = appointment_month_keyboard("de", 2027, 10, today)
         callbacks = {
             button.callback_data
