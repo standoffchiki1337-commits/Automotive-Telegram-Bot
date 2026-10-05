@@ -65,6 +65,18 @@ from automotive_bot.states import ContactFlow, CustomerSearch, ViewingRequestFlo
 from automotive_bot.translation import translate_description
 
 router = Router(name="customer")
+
+
+def _parse_calendar_period(callback_data: str) -> tuple[int, int]:
+    parts = callback_data.split(":")
+    if len(parts) != 4 or parts[0] != "viewing":
+        raise ValueError("Invalid calendar callback data.")
+    year, month = int(parts[2]), int(parts[3])
+    if not 1 <= month <= 12:
+        raise ValueError("Invalid calendar month.")
+    return year, month
+
+
 WELCOME_IMAGE_PATH = (
     Path(__file__).resolve().parents[2]
     / "attached_assets"
@@ -1003,11 +1015,11 @@ async def appointment_change_month(
         return
     await callback.answer()
     language = await get_user_language(session_factory, callback.from_user.id)
-    _, _, _, raw_year, raw_month = str(callback.data).split(":")
+    year, month = _parse_calendar_period(str(callback.data))
     today = dealership_today()
     await callback.message.edit_reply_markup(
         reply_markup=appointment_date_keyboard(
-            language, int(raw_year), int(raw_month), today
+            language, year, month, today
         )
     )
 
@@ -1021,10 +1033,10 @@ async def appointment_open_month_picker(
         return
     await callback.answer()
     language = await get_user_language(session_factory, callback.from_user.id)
-    _, _, _, raw_year, raw_month = str(callback.data).split(":")
+    year, month = _parse_calendar_period(str(callback.data))
     await callback.message.edit_reply_markup(
         reply_markup=appointment_month_keyboard(
-            language, int(raw_year), int(raw_month), dealership_today()
+            language, year, month, dealership_today()
         )
     )
 
@@ -1038,10 +1050,10 @@ async def appointment_change_picker_year(
         return
     await callback.answer()
     language = await get_user_language(session_factory, callback.from_user.id)
-    _, _, raw_year, raw_month = str(callback.data).split(":")
+    year, month = _parse_calendar_period(str(callback.data))
     await callback.message.edit_reply_markup(
         reply_markup=appointment_month_keyboard(
-            language, int(raw_year), int(raw_month), dealership_today()
+            language, year, month, dealership_today()
         )
     )
 
@@ -1055,11 +1067,11 @@ async def appointment_return_from_month_picker(
         return
     await callback.answer()
     language = await get_user_language(session_factory, callback.from_user.id)
-    _, _, raw_year, raw_month = str(callback.data).split(":")
+    year, month = _parse_calendar_period(str(callback.data))
     today = dealership_today()
     await callback.message.edit_reply_markup(
         reply_markup=appointment_date_keyboard(
-            language, int(raw_year), int(raw_month), today
+            language, year, month, today
         )
     )
 

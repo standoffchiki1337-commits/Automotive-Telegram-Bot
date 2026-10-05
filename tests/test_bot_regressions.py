@@ -22,7 +22,7 @@ from automotive_bot.i18n import (
 from automotive_bot.keyboards import fuel_selection_keyboard
 from automotive_bot.models import Car
 from automotive_bot.services import money_text
-from automotive_bot.handlers.customer import _car_caption
+from automotive_bot.handlers.customer import _car_caption, _parse_calendar_period
 from sqlalchemy import select
 
 
@@ -181,6 +181,19 @@ class AppointmentTimeTests(unittest.TestCase):
         self.assertIn("viewing:month:2027:3", callbacks)
         self.assertIn("viewing:year:2026:10", callbacks)
         self.assertIn("viewing:calendar:2027:10", callbacks)
+
+    def test_calendar_navigation_callback_data_parses_year_and_month(self) -> None:
+        for callback_data in (
+            "viewing:month:2026:11",
+            "viewing:select-month:2026:10",
+            "viewing:year:2027:10",
+            "viewing:calendar:2027:10",
+        ):
+            with self.subTest(callback_data=callback_data):
+                self.assertEqual(
+                    _parse_calendar_period(callback_data),
+                    (int(callback_data.split(":")[2]), int(callback_data.split(":")[3])),
+                )
 
     def test_appointment_horizon_is_one_calendar_year_including_leap_day(self) -> None:
         self.assertEqual(
