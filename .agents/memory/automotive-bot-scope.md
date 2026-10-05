@@ -27,11 +27,11 @@ For listing contact, open the primary bot administrator's Telegram account. Link
 
 **How to apply:** Select the earliest active administrator as the primary contact; if that administrator is removed, use the next active administrator.
 
-Translate vehicle descriptions into the customer's selected bot language using Google Cloud Translation, while preserving the stored original. Configure the Google API key on Railway, not in source code.
+Translate vehicle descriptions into the customer's selected bot language with free, offline Argos models; do not use paid translation APIs, and preserve the stored original.
 
-**Why:** The owner requested that Russian or Ukrainian listings display in the customer's chosen language, including German, and selected Google Cloud Translation for the integration.
+**Why:** The owner explicitly requires a free translation option and selected Argos offline after rejecting paid APIs.
 
-**How to apply:** Keep source descriptions unchanged, translate when rendering car cards (including photo navigation), cache successful results, and show the original with a clear notice if translation is unavailable.
+**How to apply:** Keep source descriptions unchanged, translate locally when rendering car cards (including photo navigation), cache successful results, and show the original with a clear notice if translation is unavailable.
 
 Main-menu buttons must work from any active conversation flow; customers and admins should not need `/start` just to navigate away from a prompt.
 

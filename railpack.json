@@ -4,6 +4,14 @@
   "packages": {
     "python": "3.11"
   },
+  "steps": {
+    "build": {
+      "commands": [
+        "...",
+        "uv run python -m automotive_bot.install_translation_models"
+      ]
+    }
+  },
   "deploy": {
     "startCommand": "uv run python -m automotive_bot.main"
   }

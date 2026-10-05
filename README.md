@@ -12,13 +12,14 @@ An aiogram 3 bot for an automotive business. Customers can find vehicles, save f
 - Bot contact messages and viewing requests reach administrators with a clickable customer Telegram profile
 - Administrator tools for listing creation, editing, deletion, inventory status, and photos
 - Viewing request management with administrator notifications and customer status updates
+- Free, offline Argos Translate models for vehicle descriptions; no translation API key is required
 - Persistent SQLAlchemy storage using SQLite by default; PostgreSQL is supported through `DATABASE_URL`
 
 ## Run in Replit
 
 1. Set the Telegram token as a Replit Secret named `BOT_TOKEN`. Do not place the real token in source code.
 2. Add the Telegram numeric ID of the first administrator through `ADMIN_IDS`, or run the bootstrap command below.
-3. To translate vehicle descriptions, enable Cloud Translation in Google Cloud and add `GOOGLE_TRANSLATE_API_KEY` to the Railway service variables. Restrict the key to the Cloud Translation API. The key is optional; without it, descriptions remain in their original language and the bot says translation is unavailable.
+3. Translation models are downloaded automatically on the first startup. No paid translation service or API key is used.
 4. Start the **Automotive Telegram Bot** workflow.
 
 If an administrator is added via `ADMIN_IDS`, the bot creates that administrator record on startup. Remove that ID from `ADMIN_IDS` after setup if you want subsequent removal from the in-bot administrator menu to remain permanent.
@@ -28,8 +29,8 @@ If an administrator is added via `ADMIN_IDS`, the bot creates that administrator
 `railpack.json` configures a single Python service from the repository root and starts the Telegram bot with `uv`. In Railway, use the repository root (`/`) as the service's root directory; do not deploy the individual JavaScript workspace packages as bot services.
 
 1. Create or select one Railway service connected to this repository, using the repository root as its root directory.
-2. Add `BOT_TOKEN` in that service's Variables. Optionally add `ADMIN_IDS` and `GOOGLE_TRANSLATE_API_KEY`.
-3. Attach a Railway Volume to the service at `/app/data` to keep the default SQLite database across redeploys. Leave `DATABASE_URL` unset to use SQLite.
+2. Add `BOT_TOKEN` in that service's Variables. Optionally add `ADMIN_IDS`.
+3. Attach a Railway Volume to the service at `/app/data` to keep the default SQLite database across redeploys. Leave `DATABASE_URL` unset to use SQLite. Translation models are installed during the build and do not need this volume.
 4. Keep one running replica: Telegram long polling should not run in multiple instances with the same bot token.
 
 Railway's automatic import for JavaScript workspaces can create extra services for packages such as `api-spec` and `api-client-react`. The repository configuration cannot remove services already created in Railway. Keep the root Python bot service and remove unused package services in Railway's project view only after confirming they have no data or volumes you need.
@@ -59,7 +60,6 @@ Replace the example with the administrator's numeric Telegram user ID. The bot m
 | `BOT_TOKEN` | Yes | Telegram bot token. Store as a Replit Secret or local environment variable. |
 | `DATABASE_URL` | No | Defaults to `sqlite+aiosqlite:///./data/automotive.db`; accepts PostgreSQL URLs as well. |
 | `ADMIN_IDS` | No | Comma-separated initial administrator Telegram IDs, for example `123456789,987654321`. |
-| `GOOGLE_TRANSLATE_API_KEY` | No | Google Cloud Translation API key. Descriptions are translated to each customer's selected language; without a key, the original is shown with a notice. |
 
 SQLite data is stored in `data/automotive.db`. For hosted PostgreSQL, set `DATABASE_URL` to the managed database URL. The database schema is initialized when the bot starts.
 Prices are displayed in Polish złoty (`zł`).
@@ -90,5 +90,6 @@ automotive_bot/
     customer.py         Customer catalog, search, favorites, contact, appointments
     admin.py            Inventory, request, and administrator management
   main.py               Polling entry point
+  install_translation_models.py  Downloads Argos models during the Railway build
   bootstrap_admin.py    First-administrator setup command
 ```

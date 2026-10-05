@@ -8,5 +8,9 @@ dependencies = [
     "aiosqlite>=0.22.1",
     "argostranslate>=1.11.0",
     "asyncpg>=0.31.0",
+    "langid>=1.1.6",
     "sqlalchemy[asyncio]>=2.1.2",
 ]
+
+[tool.uv.sources]
+argostranslate = { git = "https://github.com/argosopentech/argos-translate.git", rev = "17ed1a9b055c5ba1b51d76b683bbb0c64e2a4a88" }

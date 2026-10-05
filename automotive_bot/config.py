@@ -10,7 +10,6 @@ class Settings:
     database_url: str
     admin_ids: tuple[int, ...]
     currency: str
-    google_translate_api_key: str = ""
 
 
 def load_settings() -> Settings:
@@ -46,5 +45,4 @@ def load_settings() -> Settings:
         database_url=database_url,
         admin_ids=tuple(dict.fromkeys(admin_ids)),
         currency="PLN",
-        google_translate_api_key=os.getenv("GOOGLE_TRANSLATE_API_KEY", "").strip(),
     )

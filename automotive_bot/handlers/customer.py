@@ -391,7 +391,7 @@ async def _show_car(
         status = car.status
         original_description = car.description or ""
     translated_description, translation_available = await translate_description(
-        original_description, language, settings.google_translate_api_key
+        original_description, language
     )
     caption = _car_caption(
         car,
@@ -802,7 +802,7 @@ async def change_car_photo(
         status = car.status
         original_description = car.description or ""
     translated_description, translation_available = await translate_description(
-        original_description, language, settings.google_translate_api_key
+        original_description, language
     )
     caption = _car_caption(
         car,

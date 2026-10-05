@@ -12,6 +12,7 @@ from aiogram.types import BotCommand
 from automotive_bot.config import load_settings
 from automotive_bot.database import create_database, initialize_database
 from automotive_bot.handlers import admin, customer
+from automotive_bot.translation import install_required_translation_models
 
 
 async def main() -> None:
@@ -22,6 +23,13 @@ async def main() -> None:
     settings = load_settings()
     engine, session_factory = create_database(settings)
     await initialize_database(engine, session_factory, settings.admin_ids)
+    try:
+        await asyncio.to_thread(install_required_translation_models)
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            "Offline description translation is unavailable (%s).",
+            type(exc).__name__,
+        )
 
     bot = Bot(
         token=settings.bot_token,

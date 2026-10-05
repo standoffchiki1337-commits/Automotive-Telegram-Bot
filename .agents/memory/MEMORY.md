@@ -1,2 +1,3 @@
 - [Async PostgreSQL compatibility](async-postgres-compatibility.md) — Normalize Replit PostgreSQL SSL URL options for asyncpg and keep SQLAlchemy’s asyncio extra installed.
 - [Automotive bot scope](automotive-bot-scope.md) — Keep changes within the existing Telegram bot and preserve polling, PostgreSQL support, stored data, and customer/admin flows.
+- [Argos offline dependency size](argos-translation-dependency.md) — Use the lightweight upstream Argos source; the older PyPI release pulls in Stanza and PyTorch/CUDA.
